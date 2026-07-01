@@ -27,4 +27,3 @@ Use short, clear commit messages that explain the project change:
 Add calendar grid utilities
 Improve date input keyboard handling
 ```
-

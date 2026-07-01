@@ -1,0 +1,17 @@
+:root {
+  --ndp-accent: #0f766e;
+  --ndp-accent-strong: #115e59;
+  --ndp-border: #d8dee4;
+  --ndp-danger: #b42318;
+  --ndp-muted: #667085;
+  --ndp-panel: #ffffff;
+  --ndp-surface: #f8fafc;
+  --ndp-text: #101828;
+}
+
+.ndp-root {
+  color: var(--ndp-text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+

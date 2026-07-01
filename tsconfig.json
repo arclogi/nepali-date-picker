@@ -21,6 +21,7 @@
   },
   "include": [
     "eslint.config.js",
+    "demo",
     "scripts/**/*.mjs",
     "src",
     "tests",

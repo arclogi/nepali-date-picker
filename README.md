@@ -4,6 +4,8 @@ Accessible React components and TypeScript utilities for Bikram Sambat Nepali da
 
 This package is being built to give Nepali product teams and application developers a reliable, modern date picker that works with current React and TypeScript projects.
 
+Live demo: [arclogi.github.io/nepali-date-picker](https://arclogi.github.io/nepali-date-picker/)
+
 ## Features
 
 - React 18 and React 19 compatible components.
@@ -32,6 +34,7 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run demo:dev
 ```
 
 ## Usage

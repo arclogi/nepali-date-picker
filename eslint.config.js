@@ -9,7 +9,7 @@ export default tseslint.config(
     ignores: ['coverage/**', 'dist/**', 'node_modules/**', '*.tgz'],
   },
   {
-    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}', '*.config.ts'],
+    files: ['demo/**/*.{ts,tsx}', 'src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}', '*.config.ts'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
       globals: {

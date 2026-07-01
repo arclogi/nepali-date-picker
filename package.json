@@ -46,6 +46,9 @@
   "scripts": {
     "build": "tsup && node scripts/copy-css.mjs",
     "clean": "node scripts/clean.mjs",
+    "demo:build": "vite build --config demo/vite.config.ts",
+    "demo:dev": "vite --config demo/vite.config.ts",
+    "demo:preview": "vite preview --config demo/vite.config.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "lint": "eslint .",

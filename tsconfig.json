@@ -13,6 +13,10 @@
     "noEmit": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@arclogi/nepali-date-picker": ["./src/index.ts"],
+      "@arclogi/nepali-date-picker/styles.css": ["./src/global.d.ts"]
+    },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,

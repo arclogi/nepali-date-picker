@@ -11,8 +11,8 @@ This package is being built to give Nepali product teams and application develop
 - AD to BS and BS to AD utilities.
 - BS date parsing, formatting, comparison, and date math.
 - Calendar grid helpers for building custom date pickers.
-- Bikram Sambat date input and calendar picker. In progress.
-- Keyboard-friendly calendar navigation. In progress.
+- Bikram Sambat date input and calendar picker.
+- Keyboard-friendly calendar navigation.
 - Customizable CSS with stable class names.
 - Tests for date math, rendering, and interaction behavior.
 
@@ -35,6 +35,47 @@ npm run build
 ```
 
 ## Usage
+
+### Date input
+
+```tsx
+import { useState } from 'react';
+import { NepaliDateInput, type NepaliDateValue } from '@arclogi/nepali-date-picker';
+import '@arclogi/nepali-date-picker/styles.css';
+
+export function ProfileForm() {
+  const [dob, setDob] = useState<NepaliDateValue | null>(null);
+
+  return (
+    <NepaliDateInput
+      value={dob}
+      onChange={(date) => setDob(date)}
+      placeholder="Select date of birth"
+      maxDate={{ year: 2085, month: 12, day: 30 }}
+    />
+  );
+}
+```
+
+### Standalone calendar
+
+```tsx
+import { NepaliCalendar } from '@arclogi/nepali-date-picker';
+import '@arclogi/nepali-date-picker/styles.css';
+
+export function CalendarExample() {
+  return (
+    <NepaliCalendar
+      defaultViewDate={{ year: 2081, month: 1 }}
+      onChange={(date, context) => {
+        console.log(date, context.ad, context.formatted);
+      }}
+    />
+  );
+}
+```
+
+### Utilities
 
 ```tsx
 import {

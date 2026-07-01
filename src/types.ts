@@ -8,9 +8,14 @@ export interface NepaliDateValue {
   day: number;
 }
 
+export interface NepaliMonthValue {
+  year: number;
+  month: number;
+}
+
 export interface NepaliDateRange {
-  min?: NepaliDateValue;
-  max?: NepaliDateValue;
+  min?: NepaliDateValue | undefined;
+  max?: NepaliDateValue | undefined;
 }
 
 export interface NepaliDateChangeContext {
@@ -31,8 +36,8 @@ export interface NepaliCalendarDay {
 }
 
 export interface NepaliMonthGridOptions {
-  fixedWeeks?: boolean;
+  fixedWeeks?: boolean | undefined;
   month: number;
-  weekStartsOn?: WeekdayIndex;
+  weekStartsOn?: WeekdayIndex | undefined;
   year: number;
 }

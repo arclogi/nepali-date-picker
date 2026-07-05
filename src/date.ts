@@ -1,6 +1,11 @@
 import NepaliDateImport, { dateConfigMap } from 'nepali-date-converter';
 import { BS_MONTH_KEYS, DEFAULT_DATE_FORMAT, DEFAULT_LOCALE } from './constants';
-import type { NepaliDateChangeContext, NepaliDateValue, NepaliLocale } from './types';
+import type {
+  NepaliDateChangeContext,
+  NepaliDateRange,
+  NepaliDateValue,
+  NepaliLocale,
+} from './types';
 
 type NepaliDateConstructor = typeof NepaliDateImport;
 type NepaliDateInstance = InstanceType<NepaliDateConstructor>;
@@ -36,6 +41,25 @@ export const MAX_BS_DATE: NepaliDateValue = {
   month: 12,
   year: maxSupportedYear,
 };
+
+let supportedAdTimeRange: { max: number; min: number } | undefined;
+
+function getSupportedAdTimeRange(): { max: number; min: number } {
+  supportedAdTimeRange ??= {
+    max: toAD(MAX_BS_DATE).getTime(),
+    min: toAD(MIN_BS_DATE).getTime(),
+  };
+
+  return supportedAdTimeRange;
+}
+
+export function getSupportedAdRange(): { max: Date; min: Date } {
+  const range = getSupportedAdTimeRange();
+  return {
+    max: new Date(range.max),
+    min: new Date(range.min),
+  };
+}
 
 export function getDaysInNepaliMonth(year: number, month: number): number {
   assertInteger(year, 'year');
@@ -79,14 +103,14 @@ export function isValidNepaliDate(date: NepaliDateValue): boolean {
 }
 
 export function parseNepaliDate(value: string): NepaliDateValue {
-  const match = value.trim().match(/^(\d{4})[-/\s](\d{1,2})[-/\s](\d{1,2})$/);
+  const match = value.trim().match(/^(\d{4})([-/\s])(\d{1,2})\2(\d{1,2})$/);
   if (!match) {
     throw new Error('Expected a BS date string in YYYY-MM-DD format.');
   }
 
   const date = {
-    day: Number(match[3]),
-    month: Number(match[2]),
+    day: Number(match[4]),
+    month: Number(match[3]),
     year: Number(match[1]),
   };
 
@@ -116,6 +140,16 @@ export function toAD(date: NepaliDateValue): Date {
 
 export function toBS(date: Date | number | string): NepaliDateValue {
   const jsDate = normalizeAdInput(date);
+  const range = getSupportedAdTimeRange();
+  const time = jsDate.getTime();
+
+  if (time < range.min || time > range.max) {
+    throw new RangeError(
+      `AD date ${toIsoDay(jsDate)} is outside the supported BS range ` +
+        `${minSupportedYear}-01-01 to ${maxSupportedYear}-12-30.`,
+    );
+  }
+
   const nepaliDate = new NepaliDate(jsDate);
 
   return {
@@ -125,8 +159,21 @@ export function toBS(date: Date | number | string): NepaliDateValue {
   };
 }
 
-export function getNepaliToday(): NepaliDateValue {
-  return toBS(new Date());
+export function getNepaliToday(timeZone?: string): NepaliDateValue {
+  if (!timeZone) {
+    return toBS(new Date());
+  }
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    day: '2-digit',
+    month: '2-digit',
+    timeZone,
+    year: 'numeric',
+  }).formatToParts(new Date());
+  const partValue = (type: 'day' | 'month' | 'year'): number =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  return toBS(new Date(partValue('year'), partValue('month') - 1, partValue('day'), 12, 0, 0, 0));
 }
 
 export function compareNepaliDates(left: NepaliDateValue, right: NepaliDateValue): number {
@@ -145,6 +192,26 @@ export function isNepaliDateBefore(left: NepaliDateValue, right: NepaliDateValue
 
 export function isNepaliDateAfter(left: NepaliDateValue, right: NepaliDateValue): boolean {
   return compareNepaliDates(left, right) > 0;
+}
+
+export function clampNepaliDate(
+  date: NepaliDateValue,
+  range: NepaliDateRange = {},
+): NepaliDateValue {
+  assertValidNepaliDate(date);
+
+  const min = range.min ?? MIN_BS_DATE;
+  const max = range.max ?? MAX_BS_DATE;
+
+  if (compareNepaliDates(date, min) < 0) {
+    return { ...min };
+  }
+
+  if (compareNepaliDates(date, max) > 0) {
+    return { ...max };
+  }
+
+  return date;
 }
 
 export function addNepaliMonths(date: NepaliDateValue, amount: number): NepaliDateValue {
@@ -237,6 +304,10 @@ function normalizeDateObject(date: Date): Date {
 
 function toConverterLocale(locale: NepaliLocale): 'en' | 'np' {
   return locale === 'ne' ? 'np' : 'en';
+}
+
+function toIsoDay(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
 
 function assertInteger(value: number, fieldName: string): void {

@@ -8,3 +8,4 @@ dist-demo/
 *.tgz
 .env
 .env.*
+.claude/

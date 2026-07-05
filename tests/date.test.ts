@@ -1,6 +1,9 @@
 import {
+  MAX_BS_DATE,
+  MIN_BS_DATE,
   addNepaliDays,
   addNepaliMonths,
+  clampNepaliDate,
   compareNepaliDates,
   formatNepaliDate,
   getDaysInNepaliMonth,
@@ -26,6 +29,14 @@ describe('Nepali date utilities', () => {
     expect(toBS('2025-04-14')).toEqual({ year: 2082, month: 1, day: 1 });
   });
 
+  it('rejects AD dates outside the supported BS range instead of corrupting them', () => {
+    // The underlying converter silently mirrors pre-epoch dates; the wrapper must throw.
+    expect(() => toBS(new Date(1943, 3, 10, 12))).toThrow(RangeError);
+    expect(() => toBS(new Date(2034, 3, 14, 12))).toThrow(RangeError);
+    expect(() => addNepaliDays(MIN_BS_DATE, -1)).toThrow(RangeError);
+    expect(() => addNepaliDays(MAX_BS_DATE, 1)).toThrow(RangeError);
+  });
+
   it('formats, parses, and validates date values', () => {
     const date = parseNepaliDate('2081-01-01');
 
@@ -35,6 +46,11 @@ describe('Nepali date utilities', () => {
     expect(formatNepaliDate(date, 'YYYY MMMM DD')).toBe('2081 Baisakh 01');
     expect(isValidNepaliDate({ year: 2081, month: 2, day: 32 })).toBe(true);
     expect(isValidNepaliDate({ year: 2081, month: 2, day: 33 })).toBe(false);
+  });
+
+  it('requires a consistent separator when parsing', () => {
+    expect(parseNepaliDate('2081/01/01')).toEqual({ year: 2081, month: 1, day: 1 });
+    expect(() => parseNepaliDate('2081-01/01')).toThrow();
   });
 
   it('exposes reliable month lengths and date comparison', () => {
@@ -60,6 +76,24 @@ describe('Nepali date utilities', () => {
       year: 2081,
       month: 3,
       day: 31,
+    });
+  });
+
+  it('clamps dates into a range', () => {
+    const min = { year: 2081, month: 1, day: 10 };
+    const max = { year: 2081, month: 1, day: 20 };
+
+    expect(clampNepaliDate({ year: 2081, month: 1, day: 5 }, { min, max })).toEqual(min);
+    expect(clampNepaliDate({ year: 2081, month: 1, day: 25 }, { min, max })).toEqual(max);
+    expect(clampNepaliDate({ year: 2081, month: 1, day: 15 }, { min, max })).toEqual({
+      year: 2081,
+      month: 1,
+      day: 15,
+    });
+    expect(clampNepaliDate({ year: 2081, month: 1, day: 15 })).toEqual({
+      year: 2081,
+      month: 1,
+      day: 15,
     });
   });
 });

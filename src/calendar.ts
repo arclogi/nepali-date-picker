@@ -1,6 +1,4 @@
 import {
-  BS_MONTHS_EN,
-  BS_MONTHS_NE,
   DEFAULT_LOCALE,
   DEFAULT_WEEK_STARTS_ON,
   WEEKDAYS_EN_LONG,
@@ -12,8 +10,10 @@ import {
   addNepaliDays,
   assertValidNepaliDate,
   compareNepaliDates,
+  formatNepaliDate,
   getDaysInNepaliMonth,
   getNepaliToday,
+  getSupportedAdRange,
   isSameNepaliDate,
   toAD,
   toNepaliDateKey,
@@ -28,6 +28,8 @@ import type {
   WeekdayIndex,
 } from './types';
 
+const DAY_MS = 86_400_000;
+
 export function getNepaliMonthGrid(options: NepaliMonthGridOptions): NepaliCalendarDay[] {
   const weekStartsOn = options.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON;
   const fixedWeeks = options.fixedWeeks ?? true;
@@ -39,15 +41,25 @@ export function getNepaliMonthGrid(options: NepaliMonthGridOptions): NepaliCalen
 
   assertValidNepaliDate(firstDayOfMonth);
 
-  const firstWeekday = toAD(firstDayOfMonth).getDay() as WeekdayIndex;
+  const firstDayAd = toAD(firstDayOfMonth);
+  const firstWeekday = firstDayAd.getDay() as WeekdayIndex;
   const leadingDays = (firstWeekday - weekStartsOn + 7) % 7;
-  const startDate = addNepaliDays(firstDayOfMonth, -leadingDays);
   const daysInMonth = getDaysInNepaliMonth(options.year, options.month);
   const cells = fixedWeeks ? 42 : Math.ceil((leadingDays + daysInMonth) / 7) * 7;
+
+  // The supported BS range does not extend before MIN_BS_DATE or past MAX_BS_DATE,
+  // so grids for the boundary months clamp their outside-month cells instead of throwing.
+  const supportedAdRange = getSupportedAdRange();
+  const daysBeforeStart = Math.round(
+    (firstDayAd.getTime() - supportedAdRange.min.getTime()) / DAY_MS,
+  );
+  const daysUntilEnd = Math.round((supportedAdRange.max.getTime() - firstDayAd.getTime()) / DAY_MS);
+  const startOffset = -Math.min(leadingDays, daysBeforeStart);
+  const endOffset = Math.min(cells - leadingDays - 1, daysUntilEnd);
   const today = getNepaliToday();
 
-  return Array.from({ length: cells }, (_, index) => {
-    const date = addNepaliDays(startDate, index);
+  return Array.from({ length: endOffset - startOffset + 1 }, (_, index) => {
+    const date = addNepaliDays(firstDayOfMonth, startOffset + index);
     const adDate = toAD(date);
 
     return {
@@ -65,12 +77,13 @@ export function getNepaliMonthLabel(
   date: Pick<NepaliDateValue, 'month' | 'year'>,
   locale: NepaliLocale = DEFAULT_LOCALE,
 ): string {
-  const monthName = locale === 'ne' ? BS_MONTHS_NE[date.month - 1] : BS_MONTHS_EN[date.month - 1];
-  if (!monthName) {
-    throw new RangeError('BS month must be between 1 and 12.');
-  }
+  return formatNepaliDate({ day: 1, month: date.month, year: date.year }, 'MMMM YYYY', locale);
+}
 
-  return `${monthName} ${date.year}`;
+export function getNepaliMonthNames(locale: NepaliLocale = DEFAULT_LOCALE): string[] {
+  return Array.from({ length: 12 }, (_, index) =>
+    formatNepaliDate({ day: 1, month: index + 1, year: 2081 }, 'MMMM', locale),
+  );
 }
 
 export function getWeekdayLabels(

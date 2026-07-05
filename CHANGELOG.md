@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.1 (2026-07-05)
+
+### Fixed
+
+- The focused date input no longer draws a double border: the inner text field's focus outline
+  is removed and the control's accent ring is the single focus indicator.
+
+### Added
+
+- Themed month/year dropdown lists in browsers that support customizable selects (Chromium's
+  `appearance: base-select`): the open list now matches the calendar theme, with the selected
+  option highlighted and checkmarked. Other browsers keep the native list.
+
 ## 1.0.0 (2026-07-05)
 
 First stable release.

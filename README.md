@@ -260,6 +260,12 @@ npm run build
 npm run demo:dev
 ```
 
+## Contributing
+
+Contributions are welcome! The flow is the standard fork → feature branch → pull request; direct
+pushes to `main` are disabled. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide, local
+setup, and project standards. For non-trivial changes, please open an issue first.
+
 ## Roadmap
 
 - Date-range selection.

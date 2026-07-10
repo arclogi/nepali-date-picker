@@ -53,6 +53,11 @@ describe('Nepali date utilities', () => {
     expect(() => parseNepaliDate('2081-01/01')).toThrow();
   });
 
+  it('parses Devanagari and mixed digit dates', () => {
+    expect(parseNepaliDate('२०८१-०१-१५')).toEqual({ year: 2081, month: 1, day: 15 });
+    expect(parseNepaliDate('२०८१-01-१५')).toEqual({ year: 2081, month: 1, day: 15 });
+  });
+
   it('exposes reliable month lengths and date comparison', () => {
     expect(getDaysInNepaliMonth(2081, 1)).toBe(31);
     expect(getDaysInNepaliMonth(2081, 2)).toBe(32);

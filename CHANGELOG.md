@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 (2026-07-10)
+
+### Fixed
+
+- Editable inputs now accept both ASCII and Devanagari digits, so `locale="ne"` users can type
+  the same localized date format the input displays.
+- Native input `onClick` handlers are now composed with the calendar opener and can prevent the
+  popover from opening with `event.preventDefault()`.
+
 ## 1.0.1 (2026-07-05)
 
 ### Fixed

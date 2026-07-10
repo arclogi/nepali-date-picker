@@ -149,6 +149,45 @@ describe('React components', () => {
     );
   });
 
+  it('supports typing Devanagari digits in the Nepali locale', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <NepaliDateInput locale="ne" onChange={handleChange} placeholder="DOB" readOnly={false} />,
+    );
+
+    const input = screen.getByPlaceholderText('DOB');
+    await user.type(input, '२०८१-०१-१५');
+    await user.keyboard('{Enter}');
+
+    expect(input).toHaveValue('२०८१-०१-१५');
+    expect(handleChange).toHaveBeenCalledWith(
+      { year: 2081, month: 1, day: 15 },
+      expect.objectContaining({ formatted: '२०८१-०१-१५' }),
+    );
+  });
+
+  it('composes the native input click handler', async () => {
+    const user = userEvent.setup();
+    const handleClick = vi.fn();
+
+    render(
+      <NepaliDateInput
+        onClick={(event) => {
+          handleClick();
+          event.preventDefault();
+        }}
+        placeholder="DOB"
+      />,
+    );
+
+    await user.click(screen.getByPlaceholderText('DOB'));
+
+    expect(handleClick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('reverts unparseable typed text on blur', async () => {
     const user = userEvent.setup();
 

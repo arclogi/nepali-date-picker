@@ -82,6 +82,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       name,
       onBlur,
       onChange,
+      onClick,
       onFocus,
       onKeyDown,
       onOpenChange,
@@ -242,6 +243,13 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       }
     }
 
+    function handleInputClick(event: React.MouseEvent<HTMLInputElement>): void {
+      onClick?.(event);
+      if (!event.defaultPrevented) {
+        openPopover(false);
+      }
+    }
+
     function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
       onKeyDown?.(event);
 
@@ -313,7 +321,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
             id={inputId}
             onBlur={handleInputBlur}
             onChange={handleInputChange}
-            onClick={() => openPopover(false)}
+            onClick={handleInputClick}
             onFocus={onFocus}
             onKeyDown={handleInputKeyDown}
             placeholder={placeholder}

@@ -18,6 +18,7 @@ const NepaliDate = (
 ) as NepaliDateConstructor;
 
 const bsDateConfig = dateConfigMap as DateConfig;
+const DEVANAGARI_ZERO_CODE_POINT = '०'.charCodeAt(0);
 const supportedYears = Object.keys(bsDateConfig)
   .map(Number)
   .sort((a, b) => a - b);
@@ -103,7 +104,8 @@ export function isValidNepaliDate(date: NepaliDateValue): boolean {
 }
 
 export function parseNepaliDate(value: string): NepaliDateValue {
-  const match = value.trim().match(/^(\d{4})([-/\s])(\d{1,2})\2(\d{1,2})$/);
+  const normalizedValue = normalizeDevanagariDigits(value.trim());
+  const match = normalizedValue.match(/^(\d{4})([-/\s])(\d{1,2})\2(\d{1,2})$/);
   if (!match) {
     throw new Error('Expected a BS date string in YYYY-MM-DD format.');
   }
@@ -292,6 +294,12 @@ function normalizeAdInput(value: Date | number | string): Date {
   }
 
   return normalizeDateObject(new Date(value));
+}
+
+function normalizeDevanagariDigits(value: string): string {
+  return value.replace(/[०-९]/g, (digit) =>
+    String(digit.charCodeAt(0) - DEVANAGARI_ZERO_CODE_POINT),
+  );
 }
 
 function normalizeDateObject(date: Date): Date {

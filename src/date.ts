@@ -290,7 +290,11 @@ function normalizeAdInput(value: Date | number | string): Date {
     const year = Number(isoDateOnly[1]);
     const month = Number(isoDateOnly[2]);
     const day = Number(isoDateOnly[3]);
-    return normalizeDateObject(new Date(year, month - 1, day, 12, 0, 0, 0));
+    const date = new Date(year, month - 1, day, 12);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      throw new RangeError('Expected an existing AD calendar date.');
+    }
+    return normalizeDateObject(date);
   }
 
   return normalizeDateObject(new Date(value));

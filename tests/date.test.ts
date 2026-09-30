@@ -29,6 +29,13 @@ describe('Nepali date utilities', () => {
     expect(toBS('2025-04-14')).toEqual({ year: 2082, month: 1, day: 1 });
   });
 
+  it.each(['2024-02-30', '2024-13-01', '2024-00-01', '2024-04-00'])(
+    'rejects rolled-over AD date %s',
+    (date) => {
+      expect(() => toBS(date)).toThrow(RangeError);
+    },
+  );
+
   it('rejects AD dates outside the supported BS range instead of corrupting them', () => {
     // The underlying converter silently mirrors pre-epoch dates; the wrapper must throw.
     expect(() => toBS(new Date(1943, 3, 10, 12))).toThrow(RangeError);

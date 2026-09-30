@@ -19,7 +19,6 @@
 body {
   background: #f7f5f0;
   margin: 0;
-  min-width: 320px;
 }
 
 button,
@@ -45,8 +44,6 @@ a {
   max-width: 1080px;
   width: 100%;
 }
-
-/* ---------- Pitch column ---------- */
 
 .demo-pitch {
   padding: 4px;
@@ -182,11 +179,10 @@ a {
   transform: translateY(-1px);
 }
 
-/* ---------- Live demo column ---------- */
-
 .demo-live {
   display: grid;
   gap: 20px;
+  min-width: 0;
 }
 
 .demo-card {
@@ -197,6 +193,7 @@ a {
     0 24px 48px -20px rgb(28 25 20 / 16%),
     0 8px 20px -12px rgb(28 25 20 / 10%);
   padding: 28px;
+  min-width: 0;
 }
 
 .demo-card-eyebrow {
@@ -274,13 +271,25 @@ a {
   justify-content: space-between;
 }
 
+.demo-card-heading > div:first-child {
+  min-width: 0;
+}
+
 .demo-locale-toggle {
+  flex-shrink: 0;
   background: #f6f5f2;
   border: 1px solid #e7e9ec;
   border-radius: 8px;
   display: inline-flex;
   gap: 2px;
   padding: 2px;
+}
+
+.demo-link:focus-visible,
+.demo-install-copy:focus-visible,
+.demo-locale-button:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 3px;
 }
 
 .demo-locale-button {

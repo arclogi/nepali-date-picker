@@ -161,12 +161,16 @@ export function App(): React.JSX.Element {
                 value={date}
                 onChange={setDate}
                 placeholder="Select BS date"
+                locale={locale}
+                readOnly={false}
               />
             </div>
 
             <div className="demo-result" aria-live="polite">
               <span>Selected date</span>
-              <strong>{date ? formatNepaliDate(date, 'DD MMMM YYYY') : 'No date selected'}</strong>
+              <strong>
+                {date ? formatNepaliDate(date, 'DD MMMM YYYY', locale) : 'No date selected'}
+              </strong>
               {adDate ? (
                 <small>
                   AD {adDate.getFullYear()}-{pad2(adDate.getMonth() + 1)}-{pad2(adDate.getDate())}
@@ -181,7 +185,7 @@ export function App(): React.JSX.Element {
             <div className="demo-card-heading">
               <div>
                 <p className="demo-card-eyebrow">Standalone component</p>
-                <h2 className="demo-card-title">NepaliCalendar</h2>
+                <h2 className="demo-card-title">Try the calendar</h2>
               </div>
               <div aria-label="Calendar locale" className="demo-locale-toggle" role="group">
                 <button
@@ -207,10 +211,7 @@ export function App(): React.JSX.Element {
               localization built in.
             </p>
             <div className="demo-calendar-frame">
-              <NepaliCalendar
-                defaultViewDate={{ year: date?.year ?? 2081, month: date?.month ?? 1 }}
-                locale={locale}
-              />
+              <NepaliCalendar value={date} onChange={setDate} locale={locale} />
             </div>
           </div>
         </section>

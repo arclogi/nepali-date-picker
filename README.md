@@ -10,7 +10,8 @@ Live demo: [arclogi.github.io/nepali-date-picker](https://arclogi.github.io/nepa
 
 ## Features
 
-- React 18 and React 19 compatible; ships `"use client"` for Next.js App Router.
+- React 18 and React 19 compatible (including 19.3); ships `"use client"` for Next.js App Router.
+- Public declarations checked with TypeScript 5.9, 6, and 7 in ESM and CommonJS projects.
 - TypeScript-first public API with correct types for both ESM and CommonJS consumers.
 - `NepaliDateInput` / `NepaliDatePicker`: popover picker with typing support, clear button,
   controlled or uncontrolled value and open state, and hidden-input form integration.
@@ -219,7 +220,8 @@ For deeper restyling, target the stable class names (kept backward compatible ac
 
 Give the input a `name` and it renders a hidden input carrying the canonical ASCII
 `YYYY-MM-DD` value, so plain HTML form posts and server actions receive a stable value even
-when the visible input is localized to Devanagari digits:
+when the visible input is localized to Devanagari digits. The hidden input respects `disabled`
+and `form`, so disabled fields are omitted and inputs can belong to a form outside their parent:
 
 ```tsx
 <form action="/profile" method="post">
@@ -247,7 +249,8 @@ without wrappers. In Server Components, import utilities from
 
 The conversion engine supports BS 2000-01-01 through BS 2090-12-30 (AD 1943 – AD 2034).
 Utilities throw a `RangeError` outside that range; the calendar clamps navigation at the
-boundaries instead of crashing.
+boundaries instead of crashing. Initial and controlled views also clamp to `minDate` / `maxDate`;
+`minDate` must be on or before `maxDate`.
 
 ## Development
 
@@ -257,8 +260,12 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run typecheck:package
 npm run demo:dev
 ```
+
+The build and ESLint tooling use TypeScript 6. Package compatibility is tested separately with
+the latest TypeScript compiler; consumers do not need to use the build compiler's version.
 
 ## Contributing
 

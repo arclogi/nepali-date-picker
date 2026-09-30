@@ -251,6 +251,7 @@ The conversion engine supports BS 2000-01-01 through BS 2090-12-30 (AD 1943 – 
 Utilities throw a `RangeError` outside that range; the calendar clamps navigation at the
 boundaries instead of crashing. Initial and controlled views also clamp to `minDate` / `maxDate`;
 `minDate` must be on or before `maxDate`.
+Selection bounds outside the supported years are clipped to the supported endpoints.
 
 ## Development
 

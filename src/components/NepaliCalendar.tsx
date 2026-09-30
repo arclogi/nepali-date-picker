@@ -6,7 +6,6 @@ import {
   addNepaliDays,
   addNepaliMonths,
   clampNepaliDate,
-  compareNepaliDates,
   createDateChangeContext,
   formatNepaliDate,
   getNepaliToday,
@@ -29,6 +28,7 @@ import type {
   NepaliMonthValue,
   WeekdayIndex,
 } from '../types';
+import { getCalendarBounds } from './bounds';
 
 export interface NepaliCalendarProps {
   ariaLabel?: string | undefined;
@@ -85,11 +85,7 @@ export function NepaliCalendar({
     }
   }
 
-  const minBound = minDate ?? MIN_BS_DATE;
-  const maxBound = maxDate ?? MAX_BS_DATE;
-  if (compareNepaliDates(minBound, maxBound) > 0) {
-    throw new RangeError('minDate must be on or before maxDate.');
-  }
+  const { min: minBound, max: maxBound } = getCalendarBounds(minDate, maxDate);
   const currentView = clampViewToBounds(viewDate ?? internalView);
   const canGoPrev = toMonthIndex(currentView) > toMonthIndex(toMonthValue(minBound));
   const canGoNext = toMonthIndex(currentView) < toMonthIndex(toMonthValue(maxBound));
@@ -138,8 +134,8 @@ export function NepaliCalendar({
   }, [disabledDates]);
   const isDateUnavailable = React.useCallback(
     (date: NepaliDateValue) =>
-      isDateDisabled(date, disabledMatcher, { max: maxDate, min: minDate }),
-    [disabledMatcher, maxDate, minDate],
+      isDateDisabled(date, disabledMatcher, { max: maxBound, min: minBound }),
+    [disabledMatcher, maxBound, minBound],
   );
 
   // Keep one tab stop in the rendered grid after month navigation.

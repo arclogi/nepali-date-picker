@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.0.3 (2026-09-30)
 
 ### Fixed
 
 - Clamp calendar views to date bounds and preserve six-week layouts at supported boundaries.
+- Clip selection bounds outside supported years for both calendar navigation and typed input.
+- Limit the CI workflow token to read-only repository contents.
 - Keep keyboard focus when crossing months, and localize navigation labels in Nepali.
 - Use current popover callbacks and omit disabled hidden inputs from form submissions.
 - Respect external form association and restore input focus after clearing.

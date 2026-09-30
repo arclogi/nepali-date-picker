@@ -289,6 +289,43 @@ describe('React components', () => {
     expect(screen.getByRole('grid')).toHaveAccessibleName('Calendar for Chaitra 2090');
   });
 
+  it('clips selection bounds to supported years for navigation and selection', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <NepaliCalendar
+        minDate={{ year: 1990, month: 1, day: 1 }}
+        maxDate={{ year: 2100, month: 1, day: 1 }}
+        defaultViewDate={{ year: 2100, month: 1 }}
+        onChange={onChange}
+      />,
+    );
+    const years = within(screen.getByRole('combobox', { name: 'Year' })).getAllByRole('option');
+    expect(years[0]).toHaveValue('2000');
+    expect(years.at(-1)).toHaveValue('2090');
+    expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
+    await user.click(screen.getByRole('gridcell', { name: /30 Chaitra 2090/ }));
+    expect(onChange).toHaveBeenCalledWith({ year: 2090, month: 12, day: 30 }, expect.any(Object));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Year' }), '2000');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Month' }), '1');
+    expect(screen.getByRole('button', { name: 'Previous month' })).toBeDisabled();
+  });
+
+  it('accepts typed dates when input bounds extend beyond supported years', async () => {
+    const user = userEvent.setup();
+    render(
+      <NepaliDateInput
+        minDate={{ year: 1990, month: 1, day: 1 }}
+        maxDate={{ year: 2100, month: 1, day: 1 }}
+        readOnly={false}
+      />,
+    );
+    const input = screen.getByRole('combobox');
+    await user.type(input, '2081-01-15');
+    await user.keyboard('{Enter}');
+    expect(input).toHaveValue('2081-01-15');
+  });
+
   it('keeps six weeks at the supported boundaries', () => {
     const { rerender } = render(<NepaliCalendar viewDate={{ year: 2090, month: 12 }} />);
     expect(within(screen.getByRole('grid')).getAllByRole('row')).toHaveLength(7);

@@ -16,6 +16,7 @@ import type {
   WeekdayIndex,
 } from '../types';
 import { NepaliCalendar, type NepaliCalendarProps } from './NepaliCalendar';
+import { getCalendarBounds } from './bounds';
 
 type NativeInputProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -117,6 +118,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     const selectedValue = isControlled ? (value ?? null) : internalValue;
     const displayValue = selectedValue ? formatNepaliDate(selectedValue, format, locale) : '';
     const inputValue = draft ?? displayValue;
+    const bounds = getCalendarBounds(minDate, maxDate);
 
     const setInputNode = React.useCallback(
       (node: HTMLInputElement | null) => {
@@ -243,7 +245,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
         // Unparseable text falls back to the last committed value.
         return;
       }
-      if (!isDateDisabled(parsed, disabledDates, { max: maxDate, min: minDate })) {
+      if (!isDateDisabled(parsed, disabledDates, bounds)) {
         updateValue(parsed);
       }
     }
@@ -447,8 +449,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
               disabledDates={disabledDates}
               format={format}
               locale={locale}
-              maxDate={maxDate}
-              minDate={minDate}
+              maxDate={bounds.max}
+              minDate={bounds.min}
               onChange={handleSelect}
               value={selectedValue}
               viewDate={viewDate}

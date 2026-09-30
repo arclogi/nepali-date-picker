@@ -16,6 +16,7 @@ import type {
   WeekdayIndex,
 } from '../types';
 import { NepaliCalendar, type NepaliCalendarProps } from './NepaliCalendar';
+import { getCalendarBounds } from './bounds';
 
 type NativeInputProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -87,7 +88,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       onKeyDown,
       onOpenChange,
       open: openProp,
-      placeholder = 'Select date',
+      placeholder = locale === 'ne' ? 'मिति छान्नुहोस्' : 'Select date',
       popoverClassName,
       readOnly = true,
       value,
@@ -101,7 +102,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     const inputId = id ?? generatedId;
     const popoverId = `${inputId}-calendar`;
     const rootRef = React.useRef<HTMLDivElement>(null);
-    const inputRef = React.useRef<HTMLInputElement>(null);
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
     const popoverRef = React.useRef<HTMLDivElement>(null);
     const isControlled = value !== undefined;
     const isOpenControlled = openProp !== undefined;
@@ -112,10 +113,12 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     const [openedByKeyboard, setOpenedByKeyboard] = React.useState(false);
     const [draft, setDraft] = React.useState<string | null>(null);
     const [placement, setPlacement] = React.useState<'bottom' | 'top'>('bottom');
-    const open = isOpenControlled ? openProp : internalOpen;
+    const requestedOpen = isOpenControlled ? openProp : internalOpen;
+    const open = !disabled && requestedOpen;
     const selectedValue = isControlled ? (value ?? null) : internalValue;
     const displayValue = selectedValue ? formatNepaliDate(selectedValue, format, locale) : '';
     const inputValue = draft ?? displayValue;
+    const bounds = getCalendarBounds(minDate, maxDate);
 
     const setInputNode = React.useCallback(
       (node: HTMLInputElement | null) => {
@@ -129,19 +132,33 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       [forwardedRef],
     );
 
-    function setOpen(nextOpen: boolean): void {
-      if (nextOpen === open) {
-        return;
-      }
+    const setOpen = React.useCallback(
+      (nextOpen: boolean): void => {
+        if (nextOpen === requestedOpen) {
+          return;
+        }
 
-      if (!isOpenControlled) {
-        setInternalOpen(nextOpen);
-      }
-      onOpenChange?.(nextOpen);
-    }
+        if (!isOpenControlled) {
+          setInternalOpen(nextOpen);
+        }
+        onOpenChange?.(nextOpen);
+      },
+      [isOpenControlled, onOpenChange, requestedOpen],
+    );
+
+    const closePopover = React.useCallback(
+      (refocusInput: boolean): void => {
+        setOpen(false);
+        setOpenedByKeyboard(false);
+        if (refocusInput) {
+          inputRef.current?.focus();
+        }
+      },
+      [setOpen],
+    );
 
     React.useEffect(() => {
-      if (!open || typeof document === 'undefined') {
+      if (!open) {
         return;
       }
 
@@ -154,15 +171,13 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
 
       document.addEventListener('pointerdown', handlePointerDown);
       return () => document.removeEventListener('pointerdown', handlePointerDown);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    }, [closePopover, open]);
 
     React.useEffect(() => {
-      if (disabled && open) {
+      if (disabled && requestedOpen) {
         closePopover(false);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [disabled, open]);
+    }, [closePopover, disabled, requestedOpen]);
 
     // Flip the popover above the input when there is not enough room below it.
     React.useLayoutEffect(() => {
@@ -179,17 +194,21 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
 
       const spaceBelow = window.innerHeight - rootRect.bottom;
       const spaceAbove = rootRect.top;
-      if (spaceBelow < popoverHeight + 16 && spaceAbove > spaceBelow) {
-        setPlacement('top');
-      }
+      setPlacement(spaceBelow < popoverHeight + 16 && spaceAbove > spaceBelow ? 'top' : 'bottom');
     }, [open]);
 
-    function updateValue(nextValue: NepaliDateValue | null): void {
+    function updateValue(
+      nextValue: NepaliDateValue | null,
+      context?: NepaliDateChangeContext,
+    ): void {
       if (!isControlled) {
         setInternalValue(nextValue);
       }
 
-      onChange?.(nextValue, nextValue ? createDateChangeContext(nextValue, format, locale) : null);
+      onChange?.(
+        nextValue,
+        context ?? (nextValue ? createDateChangeContext(nextValue, format, locale) : null),
+      );
     }
 
     function openPopover(viaKeyboard: boolean): void {
@@ -197,17 +216,9 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       setOpen(true);
     }
 
-    function closePopover(refocusInput: boolean): void {
-      setOpen(false);
-      setOpenedByKeyboard(false);
-      if (refocusInput) {
-        inputRef.current?.focus();
-      }
-    }
-
-    function handleSelect(nextValue: NepaliDateValue): void {
+    function handleSelect(nextValue: NepaliDateValue, context: NepaliDateChangeContext): void {
       setDraft(null);
-      updateValue(nextValue);
+      updateValue(nextValue, context);
 
       if (closeOnSelect) {
         closePopover(true);
@@ -227,13 +238,15 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
         return;
       }
 
+      let parsed: NepaliDateValue;
       try {
-        const parsed = parseNepaliDate(text);
-        if (!isDateDisabled(parsed, disabledDates, { max: maxDate, min: minDate })) {
-          updateValue(parsed);
-        }
+        parsed = parseNepaliDate(text);
       } catch {
         // Unparseable text falls back to the last committed value.
+        return;
+      }
+      if (!isDateDisabled(parsed, disabledDates, bounds)) {
+        updateValue(parsed);
       }
     }
 
@@ -296,8 +309,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     function handleRootBlur(event: React.FocusEvent<HTMLDivElement>): void {
       if (
         open &&
-        event.relatedTarget instanceof Node &&
-        !rootRef.current?.contains(event.relatedTarget)
+        !(event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget))
       ) {
         closePopover(false);
       }
@@ -306,6 +318,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     return (
       <div
         className={cx('ndp-input', className)}
+        data-disabled={disabled || undefined}
+        data-invalid={inputProps['aria-invalid'] || undefined}
         onBlur={handleRootBlur}
         onKeyDown={handleRootKeyDown}
         ref={rootRef}
@@ -333,10 +347,14 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
           />
           {clearable && selectedValue ? (
             <button
-              aria-label="Clear date"
+              aria-label={locale === 'ne' ? 'मिति हटाउनुहोस्' : 'Clear date'}
               className="ndp-input__button"
               disabled={disabled}
-              onClick={() => updateValue(null)}
+              onClick={() => {
+                setDraft(null);
+                updateValue(null);
+                inputRef.current?.focus();
+              }}
               type="button"
             >
               <svg
@@ -358,9 +376,17 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
             </button>
           ) : null}
           <button
-            aria-controls={popoverId}
+            aria-controls={open ? popoverId : undefined}
             aria-expanded={open}
-            aria-label={open ? 'Close calendar' : 'Open calendar'}
+            aria-label={
+              locale === 'ne'
+                ? open
+                  ? 'पात्रो बन्द गर्नुहोस्'
+                  : 'पात्रो खोल्नुहोस्'
+                : open
+                  ? 'Close calendar'
+                  : 'Open calendar'
+            }
             className={cx('ndp-input__button', 'ndp-input__button--toggle')}
             disabled={disabled}
             onClick={() => (open ? closePopover(true) : openPopover(false))}
@@ -397,6 +423,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
 
         {name ? (
           <input
+            disabled={disabled}
+            form={inputProps.form}
             name={name}
             type="hidden"
             value={selectedValue ? toNepaliDateKey(selectedValue) : ''}
@@ -421,8 +449,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
               disabledDates={disabledDates}
               format={format}
               locale={locale}
-              maxDate={maxDate}
-              minDate={minDate}
+              maxDate={bounds.max}
+              minDate={bounds.min}
               onChange={handleSelect}
               value={selectedValue}
               viewDate={viewDate}

@@ -1,6 +1,6 @@
 {
   "name": "@arclogi/nepali-date-picker",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Accessible React components and TypeScript utilities for Bikram Sambat Nepali date input.",
   "type": "module",
   "license": "MIT",
@@ -75,11 +75,12 @@
     "format:write": "prettier --write .",
     "lint": "eslint .",
     "pack:check": "npm pack --dry-run",
-    "prepack": "npm run clean && npm run lint && npm run typecheck && npm run test && npm run build",
+    "prepack": "npm run clean && npm run lint && npm run typecheck && npm run test && npm run build && npm run typecheck:package",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "typecheck:package": "tsc --project tests/compatibility/tsconfig.json"
   },
   "peerDependencies": {
     "react": ">=18.2.0 <20"
@@ -94,22 +95,22 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^26.1.0",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitest/coverage-v8": "^3.2.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
     "happy-dom": "^20.10.6",
     "prettier": "^3.9.4",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
     "vite": "^6.4.3",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "esbuild": "^0.28.1"

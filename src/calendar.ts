@@ -7,7 +7,6 @@ import {
   WEEKDAYS_NE_SHORT,
 } from './constants';
 import {
-  addNepaliDays,
   assertValidNepaliDate,
   compareNepaliDates,
   formatNepaliDate,
@@ -16,6 +15,7 @@ import {
   getSupportedAdRange,
   isSameNepaliDate,
   toAD,
+  toBS,
   toNepaliDateKey,
 } from './date';
 import type {
@@ -47,8 +47,7 @@ export function getNepaliMonthGrid(options: NepaliMonthGridOptions): NepaliCalen
   const daysInMonth = getDaysInNepaliMonth(options.year, options.month);
   const cells = fixedWeeks ? 42 : Math.ceil((leadingDays + daysInMonth) / 7) * 7;
 
-  // The supported BS range does not extend before MIN_BS_DATE or past MAX_BS_DATE,
-  // so grids for the boundary months clamp their outside-month cells instead of throwing.
+  // Omit cells outside the converter's supported range.
   const supportedAdRange = getSupportedAdRange();
   const daysBeforeStart = Math.round(
     (firstDayAd.getTime() - supportedAdRange.min.getTime()) / DAY_MS,
@@ -59,8 +58,13 @@ export function getNepaliMonthGrid(options: NepaliMonthGridOptions): NepaliCalen
   const today = getNepaliToday();
 
   return Array.from({ length: endOffset - startOffset + 1 }, (_, index) => {
-    const date = addNepaliDays(firstDayOfMonth, startOffset + index);
-    const adDate = toAD(date);
+    const adDate = new Date(
+      firstDayAd.getFullYear(),
+      firstDayAd.getMonth(),
+      firstDayAd.getDate() + startOffset + index,
+      12,
+    );
+    const date = toBS(adDate);
 
     return {
       adDate,

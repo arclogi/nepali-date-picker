@@ -1,25 +1,13 @@
-import { defineConfig, type Options } from 'tsup';
+import { defineConfig } from 'tsup';
 
-const shared: Options = {
-  dts: true,
+export default defineConfig({
+  clean: true,
+  // tsup injects the deprecated baseUrl option while bundling declarations.
+  dts: { compilerOptions: { ignoreDeprecations: '6.0' } },
+  entry: { index: 'src/index.ts', core: 'src/core.ts' },
   external: ['react'],
   format: ['esm', 'cjs'],
   sourcemap: true,
   splitting: false,
   treeshake: true,
-};
-
-export default defineConfig([
-  {
-    ...shared,
-    banner: { js: "'use client';" },
-    clean: true,
-    entry: { index: 'src/index.ts' },
-  },
-  {
-    // Server-safe utilities entry without the "use client" banner.
-    ...shared,
-    clean: false,
-    entry: { core: 'src/core.ts' },
-  },
-]);
+});

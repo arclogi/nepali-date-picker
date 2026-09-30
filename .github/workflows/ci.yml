@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test on Node ${{ matrix.node }}
@@ -42,3 +45,29 @@ jobs:
 
       - name: Build demo
         run: npm run demo:build
+
+  compatibility:
+    name: React ${{ matrix.react }} / TypeScript ${{ matrix.typescript }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - react: '18.2.0'
+            types: '18'
+            typescript: '5.9.3'
+          - react: 'latest'
+            types: 'latest'
+            typescript: 'latest'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false react@${{ matrix.react }} react-dom@${{ matrix.react }} @types/react@${{ matrix.types }} @types/react-dom@${{ matrix.types }}
+      - run: npm test
+      - run: npm exec --yes --package=typescript@${{ matrix.typescript }} -- tsc --noEmit
+      - run: npm run build
+      - run: npm exec --yes --package=typescript@${{ matrix.typescript }} -- tsc --project tests/compatibility/tsconfig.json

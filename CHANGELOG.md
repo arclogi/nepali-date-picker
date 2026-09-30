@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.0.3 (2026-09-30)
+
+### Fixed
+
+- Clamp calendar views to date bounds and preserve six-week layouts at supported boundaries.
+- Clip selection bounds outside supported years for both calendar navigation and typed input.
+- Limit the CI workflow token to read-only repository contents.
+- Keep keyboard focus when crossing months, and localize navigation labels in Nepali.
+- Use current popover callbacks and omit disabled hidden inputs from form submissions.
+- Respect external form association and restore input focus after clearing.
+- Keep the input ref mutable with both React 18 and React 19 types.
+- Reject invalid AD date strings instead of silently rolling them into another month.
+- Prevent mobile overflow and preserve selected-day contrast on adjacent-month cells.
+
+### Changed
+
+- Reduce grid conversions and use indexed lookups for disabled-date lists.
+- Simplify the package build to generate both entries in one pass.
+- Test React 18 and current React with TypeScript 5.9 and current TypeScript consumers.
+- Upgrade development React to 19.3 and refresh development dependencies.
+- Connect both demo components to the same selected date and locale.
+
 ## 1.0.2 (2026-07-10)
 
 ### Fixed

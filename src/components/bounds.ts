@@ -9,7 +9,7 @@ import type { NepaliDateValue } from '../types';
 import { describeValue, warnInDevelopment } from './warnings';
 
 export interface CalendarBounds {
-  /** True when minDate is after maxDate: no date can be selected. */
+  /** True when no date can be selected: minDate is after maxDate, or a bound is invalid. */
   empty: boolean;
   max: NepaliDateValue;
   min: NepaliDateValue;
@@ -21,6 +21,12 @@ export function getCalendarBounds(
 ): CalendarBounds {
   const min = toBound(minDate, MIN_BS_DATE, 'minDate');
   const max = toBound(maxDate, MAX_BS_DATE, 'maxDate');
+
+  // An invalid bound fails closed, so a broken maxDate can never let a later date through.
+  // Navigation keeps the valid bound, if any; callers disable every day.
+  if (min === null || max === null) {
+    return { empty: true, max: max ?? MAX_BS_DATE, min: min ?? MIN_BS_DATE };
+  }
 
   if (compareNepaliDates(min, max) > 0) {
     warnInDevelopment(
@@ -34,11 +40,12 @@ export function getCalendarBounds(
   return { empty: false, max, min };
 }
 
+/** Returns the usable bound, the fallback when unset, or null when the bound is invalid. */
 function toBound(
   date: NepaliDateValue | null | undefined,
   fallback: NepaliDateValue,
   propName: string,
-): NepaliDateValue {
+): NepaliDateValue | null {
   if (date === null || date === undefined) {
     return fallback;
   }
@@ -49,7 +56,8 @@ function toBound(
   if (isValidNepaliDate(date)) return date;
 
   warnInDevelopment(
-    `Ignoring invalid ${propName} ${describeValue(date)}: expected an existing BS date.`,
+    `Invalid ${propName} ${describeValue(date)}: expected an existing BS date, ` +
+      'so no date can be selected.',
   );
-  return fallback;
+  return null;
 }

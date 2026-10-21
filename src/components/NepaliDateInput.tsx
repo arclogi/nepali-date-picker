@@ -105,10 +105,11 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     const rootRef = React.useRef<HTMLDivElement>(null);
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const popoverRef = React.useRef<HTMLDivElement>(null);
-    // Safari does not focus a clicked button, so pressing a day can blur the input with no
-    // related target. A press that starts inside the component keeps the popover open until it
-    // ends in a click, a focus change inside, or a cancel. It is not cleared on pointerup,
-    // because iOS fires the focus-changing mousedown only after pointerup.
+    // Safari (and Firefox on macOS) does not focus a clicked button, so pressing a day can blur
+    // the input with no related target. A press that starts inside the component keeps the
+    // popover open until it ends in a click, a focus change inside, a cancel, or a release
+    // outside. A release inside does not end it, because iOS fires the focus-changing mousedown
+    // only after pointerup.
     const pointerDownInsideRef = React.useRef(false);
     const isControlled = value !== undefined;
     const isOpenControlled = openProp !== undefined;
@@ -183,6 +184,23 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       document.addEventListener('pointerdown', handlePointerDown);
       return () => document.removeEventListener('pointerdown', handlePointerDown);
     }, [closePopover, open]);
+
+    // A press that started inside but was released outside gets no click inside, so end it here.
+    React.useEffect(() => {
+      function handlePointerUp(event: PointerEvent): void {
+        if (!pointerDownInsideRef.current) {
+          return;
+        }
+
+        const target = event.target;
+        if (!(target instanceof Node) || !rootRef.current?.contains(target)) {
+          pointerDownInsideRef.current = false;
+        }
+      }
+
+      document.addEventListener('pointerup', handlePointerUp, true);
+      return () => document.removeEventListener('pointerup', handlePointerUp, true);
+    }, []);
 
     React.useEffect(() => {
       if (disabled && requestedOpen) {
@@ -377,7 +395,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
             type="text"
             value={inputValue}
           />
-          {clearable && selectedValue ? (
+          {/* An invalid value can be cleared too, but only by an explicit press. */}
+          {clearable && (selectedValue || valueIsInvalid) ? (
             <button
               aria-label={locale === 'ne' ? 'मिति हटाउनुहोस्' : 'Clear date'}
               className="ndp-input__button"

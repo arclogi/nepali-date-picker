@@ -78,6 +78,10 @@ describe('Nepali date utilities', () => {
     // Published calendars: Asoj 31, 2083 = Sat 17 Oct 2026, Kartik 1 = Sun 18 Oct 2026,
     // Mangsir 1 = Tue 17 Nov 2026.
     expect(getDaysInNepaliMonth(2083, 6)).toBe(31);
+    // The whole published 2083 row, so a converter upgrade cannot shift another month unnoticed.
+    expect(Array.from({ length: 12 }, (_, index) => getDaysInNepaliMonth(2083, index + 1))).toEqual(
+      [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    );
     expect(toBS('2026-10-17')).toEqual({ year: 2083, month: 6, day: 31 });
     expect(toBS('2026-10-18')).toEqual({ year: 2083, month: 7, day: 1 });
     expect(toBS('2026-10-21')).toEqual({ year: 2083, month: 7, day: 4 });

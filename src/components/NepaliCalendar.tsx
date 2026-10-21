@@ -101,8 +101,8 @@ export function NepaliCalendar({
     }
   }
 
-  // Inverted bounds (minDate after maxDate) pin the view to the minDate month and make every day
-  // unavailable.
+  // Inverted (minDate after maxDate) or invalid bounds make every day unavailable; inverted ones
+  // also pin the view to the minDate month.
   const {
     empty: noSelectableDates,
     min: minBound,

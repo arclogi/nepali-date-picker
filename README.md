@@ -207,9 +207,10 @@ scoped to any wrapper:
 ```
 
 Translucent accents (the focus ring, hover borders, and the selected-day shadow) are derived from
-`--ndp-accent` with `color-mix()`, which needs Chrome 111, Safari 16.2, Firefox 113 or later.
-`--ndp-accent-rgb` is no longer required: it is still defined, and overriding it is harmless, but
-the stylesheet does not read it since 1.0.4.
+`--ndp-accent` with `color-mix()` (Chrome 111, Safari 16.2, Firefox 113 or later), so
+`--ndp-accent-rgb` is no longer required. Only older browsers read it, as a fallback: it holds the
+accent as a comma-separated triplet (`--ndp-accent-rgb: 15, 118, 110;`). If you change
+`--ndp-accent` and support those browsers, set it to the same color.
 
 A dark theme ships in the stylesheet — add `class="ndp-dark"` or `data-ndp-theme="dark"` to any
 ancestor (e.g. `<html>`).
@@ -222,14 +223,30 @@ For deeper restyling, target the stable class names (kept backward compatible ac
 
 State is exposed as data attributes:
 
-| Attribute            | On                                           | Meaning                                                       |
-| -------------------- | -------------------------------------------- | ------------------------------------------------------------- |
-| `data-weekday`       | `ndp-calendar__weekday`, `ndp-calendar__day` | Day of the week, `0` (Sunday) to `6` (Saturday).              |
-| `data-today`         | `ndp-calendar__day`                          | `true` for today's date.                                      |
-| `data-outside-month` | `ndp-calendar__day`                          | `true` for leading and trailing days of adjacent months.      |
-| `data-invalid`       | `ndp-input`, `ndp-calendar`                  | Set when `value` is not a valid date, or with `aria-invalid`. |
-| `data-disabled`      | `ndp-input`                                  | Set when the input is disabled.                               |
-| `data-placement`     | `ndp-input__popover`                         | `bottom` or `top`.                                            |
+| Attribute            | On                                           | Values                                                                                                  |
+| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `data-weekday`       | `ndp-calendar__weekday`, `ndp-calendar__day` | Day of the week, `0` (Sunday) to `6` (Saturday).                                                        |
+| `data-today`         | `ndp-calendar__day`                          | `true` on today's date, `false` on every other day.                                                     |
+| `data-outside-month` | `ndp-calendar__day`                          | `true` on leading and trailing days of adjacent months, `false` otherwise.                              |
+| `data-invalid`       | `ndp-input`                                  | `true` when `value` is not a valid date; otherwise a copy of your `aria-invalid`, which can be `false`. |
+| `data-invalid`       | `ndp-calendar`                               | `true` when `value` is not a valid date; absent otherwise.                                              |
+| `data-disabled`      | `ndp-input`                                  | `true` when the input is disabled; absent otherwise.                                                    |
+| `data-placement`     | `ndp-input__popover`                         | `bottom` or `top`.                                                                                      |
+
+Match `data-today`, `data-outside-month` and `data-invalid` by value: they can be present with the
+value `false`, so `[data-today]` alone matches every day.
+
+```css
+.ndp-calendar__day[data-today='true'] {
+  /* today */
+}
+.ndp-calendar__day[data-outside-month='true'] {
+  /* days of the previous and next month */
+}
+.ndp-input[data-invalid]:not([data-invalid='false']) .ndp-input__control {
+  /* an invalid field (this is the rule the stylesheet uses) */
+}
+```
 
 For example, to mark Saturdays (the weekly holiday in Nepal) whatever `weekStartsOn` is:
 
@@ -281,12 +298,16 @@ The components never throw during render because of a bad prop:
 - A `value` or `defaultValue` that is not an existing BS date in the supported range (for example
   `{ year: 2083, month: 6, day: 32 }`, or an AD date such as `{ year: 2026, month: 10, day: 31 }`)
   renders as an empty field with `data-invalid` and `aria-invalid="true"` (unless you pass your
-  own `aria-invalid`). `onChange` is not called, the hidden form input is empty, and picking a
-  date replaces the value.
+  own `aria-invalid`). `onChange` is not called on its own, and the hidden form input is empty.
+  Picking a date replaces the value, and the Clear button (shown for an invalid value too) sets it
+  to `null`.
 - If `minDate` is after `maxDate`, no date can be selected: every day is disabled, typed dates are
   rejected, and the view stays on the `minDate` month.
-- An invalid `minDate` or `maxDate`, a malformed `viewDate` / `defaultViewDate`, and invalid
-  `disabledDates` entries are ignored.
+- An invalid `minDate` or `maxDate` (for example `{ year: 2083, month: 6, day: 32 }`) also makes no
+  date selectable, so an invalid bound never opens up the whole supported range. Navigation still
+  follows the other bound. A bound in a year outside the supported range is
+  not invalid: it is clipped as described above.
+- A malformed `viewDate` / `defaultViewDate` and invalid `disabledDates` entries are ignored.
 - If the device clock is outside the supported range, no day is marked as today and the Today
   button is disabled.
 

@@ -2,6 +2,7 @@
   --ndp-accent: #0f766e;
   --ndp-accent-strong: #115e59;
   --ndp-accent-soft: #ccfbf1;
+  /* No longer used since 1.0.4 (translucent accents use color-mix); kept for compatibility. */
   --ndp-accent-rgb: 15, 118, 110;
   --ndp-border: #e7e9ec;
   --ndp-border-strong: #8a949e;
@@ -118,7 +119,7 @@
 
 .ndp-calendar__select:hover {
   background-color: var(--ndp-surface);
-  border-color: rgb(var(--ndp-accent-rgb) / 35%);
+  border-color: color-mix(in srgb, var(--ndp-accent) 35%, transparent);
 }
 
 .ndp-calendar__select:focus-visible {
@@ -206,7 +207,7 @@
 .ndp-icon-button:hover,
 .ndp-input__button:hover {
   background: var(--ndp-surface);
-  border-color: rgb(var(--ndp-accent-rgb) / 35%);
+  border-color: color-mix(in srgb, var(--ndp-accent) 35%, transparent);
   color: var(--ndp-accent-strong);
 }
 
@@ -315,8 +316,8 @@
 .ndp-calendar__day[aria-selected='true'] {
   background: var(--ndp-accent);
   box-shadow:
-    0 6px 16px -4px rgb(var(--ndp-accent-rgb) / 55%),
-    0 2px 6px -1px rgb(var(--ndp-accent-rgb) / 40%);
+    0 6px 16px -4px color-mix(in srgb, var(--ndp-accent) 55%, transparent),
+    0 2px 6px -1px color-mix(in srgb, var(--ndp-accent) 40%, transparent);
   color: var(--ndp-selected-text);
   font-weight: 700;
 }
@@ -417,7 +418,7 @@
 
 .ndp-input__control:focus-within {
   border-color: var(--ndp-accent);
-  box-shadow: 0 0 0 3px rgb(var(--ndp-accent-rgb) / 14%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ndp-accent) 14%, transparent);
 }
 
 .ndp-input[data-disabled] .ndp-input__control {
@@ -460,6 +461,11 @@
   transform-origin: top right;
   width: 100%;
   z-index: 50;
+}
+
+/* The popover takes focus only as a press target (Safari); its controls draw their own rings. */
+.ndp-input__popover:focus {
+  outline: none;
 }
 
 .ndp-input__popover[data-placement='top'] {

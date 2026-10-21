@@ -37,6 +37,27 @@ describe('Nepali calendar helpers', () => {
     expect(lastMonth.some((day) => day.date.year > SUPPORTED_BS_YEAR_RANGE.max)).toBe(false);
   });
 
+  it('ends Asoj 2083 on day 31 and starts Kartik 2083 on a Sunday', () => {
+    const asoj = getNepaliMonthGrid({ year: 2083, month: 6 });
+    const kartik = getNepaliMonthGrid({ year: 2083, month: 7 });
+
+    expect(asoj.filter((day) => !day.outsideMonth)).toHaveLength(31);
+    expect(asoj.find((day) => day.key === '2083-06-31')).toMatchObject({ weekday: 6 });
+    expect(kartik[0]).toMatchObject({ key: '2083-07-01', outsideMonth: false, weekday: 0 });
+  });
+
+  it('marks no day as today when the device clock is outside the supported range', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2040, 0, 1, 12));
+    try {
+      const grid = getNepaliMonthGrid({ year: 2083, month: 7 });
+      expect(grid).toHaveLength(42);
+      expect(grid.some((day) => day.isToday)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('labels months and weekdays for English and Nepali locales', () => {
     expect(getNepaliMonthLabel({ year: 2081, month: 1 })).toBe('Baisakh 2081');
     expect(getNepaliMonthLabel({ year: 2081, month: 1 }, 'ne')).toBe('बैशाख २०८१');

@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.0.4 (2026-10-21)
+
+### Fixed
+
+- Tapping a day in Safari now selects it. Safari does not focus a pressed button, so the input
+  blurred with no related target and the popover closed before the click landed. The popover is
+  now a focus target (`tabIndex={-1}`), and a blur during a press that started inside the
+  component no longer closes it. Pressing the popover's padding or the gaps between days no
+  longer closes it in other browsers either.
+- The input focus ring, hover borders, and selected-day shadow are visible again. They used
+  `rgb(var(--ndp-accent-rgb) / x%)`, which is invalid CSS with the documented comma triplet; they
+  now use `color-mix(in srgb, var(--ndp-accent) x%, transparent)`. `--ndp-accent-rgb` is no longer
+  required and is kept only for compatibility.
+- The components no longer throw during render:
+  - an invalid or out-of-range `value` / `defaultValue` renders as an empty field marked with
+    `data-invalid` (and `aria-invalid="true"` unless you pass your own);
+  - `minDate` after `maxDate` makes no date selectable instead of throwing;
+  - an invalid `minDate` / `maxDate`, a malformed `viewDate` / `defaultViewDate`, and invalid
+    `disabledDates` entries are ignored;
+  - a device clock outside the supported range shows no today marker and disables Today
+    (`getNepaliMonthGrid` also stops throwing in that case).
+
+  Development builds log one warning per distinct problem; production builds stay silent.
+
+### Added
+
+- `data-weekday` (`0` = Sunday … `6` = Saturday) on weekday headers and day cells, so apps can
+  style Saturdays or any other weekday whatever `weekStartsOn` is.
+- Tests that pin the engine to the published calendar for 2083: Asoj has 31 days and Kartik 1 is
+  Sunday 18 October 2026 (`bikram-sambat-js` gets this wrong, shifting later dates by a day).
+
+### Changed
+
+- The build emits the shared date code once per format: `index` and `core` both import it from a
+  shared chunk instead of each bundling a copy, so apps that use both entries ship it once. The
+  `./core` entry and the chunk stay free of React and `"use client"`; the build now checks this.
+
 ## 1.0.3 (2026-09-30)
 
 ### Fixed

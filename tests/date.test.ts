@@ -73,6 +73,27 @@ describe('Nepali date utilities', () => {
     ).toBeGreaterThan(0);
   });
 
+  it('matches the published calendar for Asoj and Kartik 2083', () => {
+    // bikram-sambat-js gives Asoj 2083 only 30 days, which puts every later date a day ahead.
+    // Published calendars: Asoj 31, 2083 = Sat 17 Oct 2026, Kartik 1 = Sun 18 Oct 2026,
+    // Mangsir 1 = Tue 17 Nov 2026.
+    expect(getDaysInNepaliMonth(2083, 6)).toBe(31);
+    expect(toBS('2026-10-17')).toEqual({ year: 2083, month: 6, day: 31 });
+    expect(toBS('2026-10-18')).toEqual({ year: 2083, month: 7, day: 1 });
+    expect(toBS('2026-10-21')).toEqual({ year: 2083, month: 7, day: 4 });
+    expect(toBS('2026-11-17')).toEqual({ year: 2083, month: 8, day: 1 });
+
+    const kartikFirst = toAD({ year: 2083, month: 7, day: 1 });
+    expect([kartikFirst.getFullYear(), kartikFirst.getMonth() + 1, kartikFirst.getDate()]).toEqual([
+      2026, 10, 18,
+    ]);
+    expect(kartikFirst.getDay()).toBe(0);
+    // The owner-approved spelling stays the converter's आश्विन.
+    expect(formatNepaliDate({ year: 2083, month: 6, day: 31 }, 'DD MMMM YYYY', 'ne')).toBe(
+      '३१ आश्विन २०८३',
+    );
+  });
+
   it('adds days and months while clamping impossible month dates', () => {
     expect(addNepaliDays({ year: 2081, month: 1, day: 1 }, 1)).toEqual({
       year: 2081,

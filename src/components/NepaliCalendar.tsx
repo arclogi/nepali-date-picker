@@ -8,7 +8,6 @@ import {
   clampNepaliDate,
   createDateChangeContext,
   formatNepaliDate,
-  getNepaliToday,
   isSameNepaliDate,
   toNepaliDateKey,
 } from '../date';
@@ -29,6 +28,13 @@ import type {
   WeekdayIndex,
 } from '../types';
 import { getCalendarBounds } from './bounds';
+import {
+  getNearestSupportedDate,
+  getSupportedToday,
+  toDisabledMatcher,
+  toValidDate,
+  toValidView,
+} from './sanitize';
 
 export interface NepaliCalendarProps {
   ariaLabel?: string | undefined;
@@ -67,26 +73,42 @@ export function NepaliCalendar({
   viewDate,
   weekStartsOn = DEFAULT_WEEK_STARTS_ON,
 }: NepaliCalendarProps): React.JSX.Element {
-  const today = React.useMemo(() => getNepaliToday(), []);
+  // Null when the device clock is outside the supported range.
+  const today = React.useMemo(() => getSupportedToday(), []);
+  const todayOrNearest = React.useMemo(() => today ?? getNearestSupportedDate(), [today]);
+  // Invalid or out-of-range values render as no selection instead of throwing.
+  const selectedValue = toValidDate(value, 'value');
+  const valueIsInvalid = value !== null && value !== undefined && selectedValue === null;
+  const controlledView = toValidView(viewDate, 'viewDate');
   const [internalView, setInternalView] = React.useState<NepaliMonthValue>(() =>
-    toMonthValue(value ?? defaultViewDate ?? today),
+    toMonthValue(
+      selectedValue ?? toValidView(defaultViewDate, 'defaultViewDate') ?? todayOrNearest,
+    ),
   );
-  const [focusedDate, setFocusedDate] = React.useState<NepaliDateValue>(value ?? today);
-  const [prevValue, setPrevValue] = React.useState<NepaliDateValue | null | undefined>(value);
+  const [focusedDate, setFocusedDate] = React.useState<NepaliDateValue>(
+    selectedValue ?? todayOrNearest,
+  );
+  const [prevValue, setPrevValue] = React.useState<NepaliDateValue | null>(selectedValue);
   const dayRefs = React.useRef(new Map<string, HTMLButtonElement>());
   const pendingFocusKey = React.useRef<string | null>(null);
 
   // Follow external value changes without an extra effect render.
-  if (value !== prevValue) {
-    setPrevValue(value);
-    if (value && (!prevValue || !isSameNepaliDate(value, prevValue))) {
-      setFocusedDate(value);
-      setInternalView(toMonthValue(value));
+  if (selectedValue !== prevValue) {
+    setPrevValue(selectedValue);
+    if (selectedValue && (!prevValue || !isSameNepaliDate(selectedValue, prevValue))) {
+      setFocusedDate(selectedValue);
+      setInternalView(toMonthValue(selectedValue));
     }
   }
 
-  const { min: minBound, max: maxBound } = getCalendarBounds(minDate, maxDate);
-  const currentView = clampViewToBounds(viewDate ?? internalView);
+  // Inverted bounds (minDate after maxDate) pin the view to the minDate month and make every day
+  // unavailable.
+  const {
+    empty: noSelectableDates,
+    min: minBound,
+    max: maxBound,
+  } = getCalendarBounds(minDate, maxDate);
+  const currentView = clampViewToBounds(controlledView ?? internalView);
   const canGoPrev = toMonthIndex(currentView) > toMonthIndex(toMonthValue(minBound));
   const canGoNext = toMonthIndex(currentView) < toMonthIndex(toMonthValue(maxBound));
 
@@ -125,17 +147,11 @@ export function NepaliCalendar({
     [calendarDays, fixedWeeks, weekStartsOn],
   );
 
-  const disabledMatcher = React.useMemo(() => {
-    if (!disabledDates || typeof disabledDates === 'function') {
-      return disabledDates;
-    }
-    const keys = new Set(disabledDates.map(toNepaliDateKey));
-    return (date: NepaliDateValue) => keys.has(toNepaliDateKey(date));
-  }, [disabledDates]);
+  const disabledMatcher = React.useMemo(() => toDisabledMatcher(disabledDates), [disabledDates]);
   const isDateUnavailable = React.useCallback(
     (date: NepaliDateValue) =>
-      isDateDisabled(date, disabledMatcher, { max: maxBound, min: minBound }),
-    [disabledMatcher, maxBound, minBound],
+      noSelectableDates || isDateDisabled(date, disabledMatcher, { max: maxBound, min: minBound }),
+    [disabledMatcher, maxBound, minBound, noSelectableDates],
   );
 
   // Keep one tab stop in the rendered grid after month navigation.
@@ -147,11 +163,11 @@ export function NepaliCalendar({
       return focusedDate;
     }
 
-    if (value && inGrid(value)) {
-      return value;
+    if (selectedValue && inGrid(selectedValue)) {
+      return selectedValue;
     }
 
-    if (inGrid(today)) {
+    if (today && inGrid(today)) {
       return today;
     }
 
@@ -159,13 +175,13 @@ export function NepaliCalendar({
       (calendarDay) => !calendarDay.outsideMonth && !isDateUnavailable(calendarDay.date),
     );
     return firstAvailable?.date ?? calendarDays[0]!.date;
-  }, [calendarDays, focusedDate, isDateUnavailable, today, value]);
+  }, [calendarDays, focusedDate, isDateUnavailable, selectedValue, today]);
 
   function setView(nextView: NepaliMonthValue): void {
     if (toMonthIndex(nextView) === toMonthIndex(currentView)) {
       return;
     }
-    if (!viewDate) {
+    if (!controlledView) {
       setInternalView(nextView);
     }
     onViewDateChange?.(nextView);
@@ -220,6 +236,9 @@ export function NepaliCalendar({
   }
 
   function selectToday(): void {
+    if (!today) {
+      return;
+    }
     moveFocus(today);
     onChange?.(today, createDateChangeContext(today, format, locale));
   }
@@ -290,10 +309,10 @@ export function NepaliCalendar({
     return cell ? (cell.weekday - weekStartsOn + 7) % 7 : 0;
   }
 
-  const todayUnavailable = isDateUnavailable(today);
+  const todayUnavailable = !today || isDateUnavailable(today);
 
   return (
-    <div className={cx('ndp-calendar', className)}>
+    <div className={cx('ndp-calendar', className)} data-invalid={valueIsInvalid || undefined}>
       <div className="ndp-calendar__header">
         <button
           aria-label={locale === 'ne' ? 'अघिल्लो महिना' : 'Previous month'}
@@ -403,8 +422,13 @@ export function NepaliCalendar({
         role="grid"
       >
         <div className="ndp-calendar__weekdays" role="row">
-          {weekdayLabels.map((weekday) => (
-            <div className="ndp-calendar__weekday" key={weekday} role="columnheader">
+          {weekdayLabels.map((weekday, columnIndex) => (
+            <div
+              className="ndp-calendar__weekday"
+              data-weekday={(weekStartsOn + columnIndex) % 7}
+              key={weekday}
+              role="columnheader"
+            >
               {weekday}
             </div>
           ))}
@@ -417,13 +441,16 @@ export function NepaliCalendar({
                 return (
                   <div
                     className="ndp-calendar__day ndp-calendar__day--empty"
+                    data-weekday={(weekStartsOn + columnIndex) % 7}
                     key={`empty-${weekIndex}-${columnIndex}`}
                     role="gridcell"
                   />
                 );
               }
 
-              const selected = value ? isSameNepaliDate(calendarDay.date, value) : false;
+              const selected = selectedValue
+                ? isSameNepaliDate(calendarDay.date, selectedValue)
+                : false;
               const focused = isSameNepaliDate(calendarDay.date, effectiveFocusedDate);
               const unavailable = isDateUnavailable(calendarDay.date);
               const labels = cellLabels.get(calendarDay.key)!;
@@ -437,6 +464,7 @@ export function NepaliCalendar({
                   className="ndp-calendar__day"
                   data-outside-month={calendarDay.outsideMonth}
                   data-today={calendarDay.isToday}
+                  data-weekday={calendarDay.weekday}
                   key={calendarDay.key}
                   onClick={() => selectDate(calendarDay.date)}
                   onFocus={() => setFocusedDate(calendarDay.date)}

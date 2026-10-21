@@ -193,7 +193,6 @@ scoped to any wrapper:
   --ndp-accent: #0f766e; /* primary accent (selected day, focus rings) */
   --ndp-accent-strong: #115e59; /* hover accent */
   --ndp-accent-soft: #ccfbf1; /* soft accent fills */
-  --ndp-accent-rgb: 15, 118, 110; /* accent as RGB triplet, for translucent shadows */
   --ndp-text: #221f1a;
   --ndp-muted: #5b6560;
   --ndp-panel: #ffffff; /* calendar and input background */
@@ -207,6 +206,11 @@ scoped to any wrapper:
 }
 ```
 
+Translucent accents (the focus ring, hover borders, and the selected-day shadow) are derived from
+`--ndp-accent` with `color-mix()`, which needs Chrome 111, Safari 16.2, Firefox 113 or later.
+`--ndp-accent-rgb` is no longer required: it is still defined, and overriding it is harmless, but
+the stylesheet does not read it since 1.0.4.
+
 A dark theme ships in the stylesheet — add `class="ndp-dark"` or `data-ndp-theme="dark"` to any
 ancestor (e.g. `<html>`).
 
@@ -215,6 +219,26 @@ For deeper restyling, target the stable class names (kept backward compatible ac
 `ndp-calendar`, `ndp-calendar__header`, `ndp-calendar__select`, `ndp-calendar__grid`,
 `ndp-calendar__week`, `ndp-calendar__weekday`, `ndp-calendar__day`, `ndp-calendar__footer`,
 `ndp-calendar__today`.
+
+State is exposed as data attributes:
+
+| Attribute            | On                                           | Meaning                                                       |
+| -------------------- | -------------------------------------------- | ------------------------------------------------------------- |
+| `data-weekday`       | `ndp-calendar__weekday`, `ndp-calendar__day` | Day of the week, `0` (Sunday) to `6` (Saturday).              |
+| `data-today`         | `ndp-calendar__day`                          | `true` for today's date.                                      |
+| `data-outside-month` | `ndp-calendar__day`                          | `true` for leading and trailing days of adjacent months.      |
+| `data-invalid`       | `ndp-input`, `ndp-calendar`                  | Set when `value` is not a valid date, or with `aria-invalid`. |
+| `data-disabled`      | `ndp-input`                                  | Set when the input is disabled.                               |
+| `data-placement`     | `ndp-input__popover`                         | `bottom` or `top`.                                            |
+
+For example, to mark Saturdays (the weekly holiday in Nepal) whatever `weekStartsOn` is:
+
+```css
+.ndp-calendar__weekday[data-weekday='6'],
+.ndp-calendar__day[data-weekday='6']:not([aria-selected='true']) {
+  color: var(--ndp-danger);
+}
+```
 
 ## Forms
 
@@ -249,9 +273,25 @@ without wrappers. In Server Components, import utilities from
 
 The conversion engine supports BS 2000-01-01 through BS 2090-12-30 (AD 1943 – AD 2034).
 Utilities throw a `RangeError` outside that range; the calendar clamps navigation at the
-boundaries instead of crashing. Initial and controlled views also clamp to `minDate` / `maxDate`;
-`minDate` must be on or before `maxDate`.
+boundaries instead of crashing. Initial and controlled views also clamp to `minDate` / `maxDate`.
 Selection bounds outside the supported years are clipped to the supported endpoints.
+
+The components never throw during render because of a bad prop:
+
+- A `value` or `defaultValue` that is not an existing BS date in the supported range (for example
+  `{ year: 2083, month: 6, day: 32 }`, or an AD date such as `{ year: 2026, month: 10, day: 31 }`)
+  renders as an empty field with `data-invalid` and `aria-invalid="true"` (unless you pass your
+  own `aria-invalid`). `onChange` is not called, the hidden form input is empty, and picking a
+  date replaces the value.
+- If `minDate` is after `maxDate`, no date can be selected: every day is disabled, typed dates are
+  rejected, and the view stays on the `minDate` month.
+- An invalid `minDate` or `maxDate`, a malformed `viewDate` / `defaultViewDate`, and invalid
+  `disabledDates` entries are ignored.
+- If the device clock is outside the supported range, no day is marked as today and the Today
+  button is disabled.
+
+Except for the clock case, each of these logs one `console.warn` per distinct problem in
+development builds; production builds stay silent.
 
 ## Development
 

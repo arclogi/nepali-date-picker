@@ -8,6 +8,8 @@ export default defineConfig({
   external: ['react'],
   format: ['esm', 'cjs'],
   sourcemap: true,
-  splitting: false,
+  // Emit the shared utilities once, as a chunk that both entries import, so apps that use the
+  // components and ./core do not bundle the date code twice. scripts/postbuild.mjs checks this.
+  splitting: true,
   treeshake: true,
 });

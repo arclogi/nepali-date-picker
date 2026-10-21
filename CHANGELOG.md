@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.0.4 (2026-10-21)
+
+### Fixed
+
+- Pressing a day in Safari, and in Firefox on macOS, now selects it. Neither focuses a pressed
+  button, so the input blurred with no related target and the popover closed before the click
+  landed. The popover is now a focus target (`tabIndex={-1}`), and a blur during a press that
+  started inside the component no longer closes it; the press ends with a click, a focus change
+  inside, a cancel, a release outside the component, or a press outside it. Pressing the
+  popover's padding or the gaps between days no longer closes it in other browsers either.
+- The input focus ring, hover borders, and selected-day shadow are visible again. They used
+  `rgb(var(--ndp-accent-rgb) / x%)`, which is invalid CSS with the documented comma triplet; they
+  now use `color-mix(in srgb, var(--ndp-accent) x%, transparent)`, so `--ndp-accent-rgb` is no
+  longer required. Browsers without `color-mix()` (Chrome < 111, Safari < 16.2, Firefox < 113)
+  fall back to `rgba(var(--ndp-accent-rgb), x)`, which now works there too.
+- The components no longer throw during render:
+  - an invalid or out-of-range `value` / `defaultValue` renders as an empty field marked with
+    `data-invalid` (and `aria-invalid="true"` unless you pass your own); the Clear button stays
+    available so users can remove it;
+  - `minDate` after `maxDate` makes no date selectable instead of throwing;
+  - an invalid `minDate` / `maxDate` also makes no date selectable, so it never opens up the whole
+    range;
+  - a malformed `viewDate` / `defaultViewDate` and invalid `disabledDates` entries are ignored;
+  - a device clock outside the supported range shows no today marker and disables Today
+    (`getNepaliMonthGrid` also stops throwing in that case).
+
+  Development builds log one warning per distinct problem; production builds stay silent.
+
+### Added
+
+- `data-weekday` (`0` = Sunday … `6` = Saturday) on weekday headers and day cells, so apps can
+  style Saturdays or any other weekday whatever `weekStartsOn` is.
+- Tests that pin the engine to the published calendar for 2083: all twelve month lengths, Asoj
+  has 31 days, and Kartik 1 is Sunday 18 October 2026 (`bikram-sambat-js` gets this wrong,
+  shifting later dates by a day).
+- README: the values of every data attribute, with the selectors to use (`[data-today='true']`,
+  not `[data-today]`).
+
+### Changed
+
+- The build emits the shared date code once per format: `index` and `core` both import it from a
+  shared chunk instead of each bundling a copy, so apps that use both entries ship it once. The
+  `./core` entry and the chunk stay free of React and `"use client"`; the build now checks this.
+- CI checks the packed package with `publint --strict` and `@arethetypeswrong/cli --pack`.
+
 ## 1.0.3 (2026-09-30)
 
 ### Fixed

@@ -193,7 +193,6 @@ scoped to any wrapper:
   --ndp-accent: #0f766e; /* primary accent (selected day, focus rings) */
   --ndp-accent-strong: #115e59; /* hover accent */
   --ndp-accent-soft: #ccfbf1; /* soft accent fills */
-  --ndp-accent-rgb: 15, 118, 110; /* accent as RGB triplet, for translucent shadows */
   --ndp-text: #221f1a;
   --ndp-muted: #5b6560;
   --ndp-panel: #ffffff; /* calendar and input background */
@@ -207,6 +206,12 @@ scoped to any wrapper:
 }
 ```
 
+Translucent accents (the focus ring, hover borders, and the selected-day shadow) are derived from
+`--ndp-accent` with `color-mix()` (Chrome 111, Safari 16.2, Firefox 113 or later), so
+`--ndp-accent-rgb` is no longer required. Only older browsers read it, as a fallback: it holds the
+accent as a comma-separated triplet (`--ndp-accent-rgb: 15, 118, 110;`). If you change
+`--ndp-accent` and support those browsers, set it to the same color.
+
 A dark theme ships in the stylesheet — add `class="ndp-dark"` or `data-ndp-theme="dark"` to any
 ancestor (e.g. `<html>`).
 
@@ -215,6 +220,42 @@ For deeper restyling, target the stable class names (kept backward compatible ac
 `ndp-calendar`, `ndp-calendar__header`, `ndp-calendar__select`, `ndp-calendar__grid`,
 `ndp-calendar__week`, `ndp-calendar__weekday`, `ndp-calendar__day`, `ndp-calendar__footer`,
 `ndp-calendar__today`.
+
+State is exposed as data attributes:
+
+| Attribute            | On                                           | Values                                                                                                  |
+| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `data-weekday`       | `ndp-calendar__weekday`, `ndp-calendar__day` | Day of the week, `0` (Sunday) to `6` (Saturday).                                                        |
+| `data-today`         | `ndp-calendar__day`                          | `true` on today's date, `false` on every other day.                                                     |
+| `data-outside-month` | `ndp-calendar__day`                          | `true` on leading and trailing days of adjacent months, `false` otherwise.                              |
+| `data-invalid`       | `ndp-input`                                  | `true` when `value` is not a valid date; otherwise a copy of your `aria-invalid`, which can be `false`. |
+| `data-invalid`       | `ndp-calendar`                               | `true` when `value` is not a valid date; absent otherwise.                                              |
+| `data-disabled`      | `ndp-input`                                  | `true` when the input is disabled; absent otherwise.                                                    |
+| `data-placement`     | `ndp-input__popover`                         | `bottom` or `top`.                                                                                      |
+
+Match `data-today`, `data-outside-month` and `data-invalid` by value: they can be present with the
+value `false`, so `[data-today]` alone matches every day.
+
+```css
+.ndp-calendar__day[data-today='true'] {
+  /* today */
+}
+.ndp-calendar__day[data-outside-month='true'] {
+  /* days of the previous and next month */
+}
+.ndp-input[data-invalid]:not([data-invalid='false']) .ndp-input__control {
+  /* an invalid field (this is the rule the stylesheet uses) */
+}
+```
+
+For example, to mark Saturdays (the weekly holiday in Nepal) whatever `weekStartsOn` is:
+
+```css
+.ndp-calendar__weekday[data-weekday='6'],
+.ndp-calendar__day[data-weekday='6']:not([aria-selected='true']) {
+  color: var(--ndp-danger);
+}
+```
 
 ## Forms
 
@@ -249,9 +290,29 @@ without wrappers. In Server Components, import utilities from
 
 The conversion engine supports BS 2000-01-01 through BS 2090-12-30 (AD 1943 – AD 2034).
 Utilities throw a `RangeError` outside that range; the calendar clamps navigation at the
-boundaries instead of crashing. Initial and controlled views also clamp to `minDate` / `maxDate`;
-`minDate` must be on or before `maxDate`.
+boundaries instead of crashing. Initial and controlled views also clamp to `minDate` / `maxDate`.
 Selection bounds outside the supported years are clipped to the supported endpoints.
+
+The components never throw during render because of a bad prop:
+
+- A `value` or `defaultValue` that is not an existing BS date in the supported range (for example
+  `{ year: 2083, month: 6, day: 32 }`, or an AD date such as `{ year: 2026, month: 10, day: 31 }`)
+  renders as an empty field with `data-invalid` and `aria-invalid="true"` (unless you pass your
+  own `aria-invalid`). `onChange` is not called on its own, and the hidden form input is empty.
+  Picking a date replaces the value, and the Clear button (shown for an invalid value too) sets it
+  to `null`.
+- If `minDate` is after `maxDate`, no date can be selected: every day is disabled, typed dates are
+  rejected, and the view stays on the `minDate` month.
+- An invalid `minDate` or `maxDate` (for example `{ year: 2083, month: 6, day: 32 }`) also makes no
+  date selectable, so an invalid bound never opens up the whole supported range. Navigation still
+  follows the other bound. A bound in a year outside the supported range is
+  not invalid: it is clipped as described above.
+- A malformed `viewDate` / `defaultViewDate` and invalid `disabledDates` entries are ignored.
+- If the device clock is outside the supported range, no day is marked as today and the Today
+  button is disabled.
+
+Except for the clock case, each of these logs one `console.warn` per distinct problem in
+development builds; production builds stay silent.
 
 ## Development
 

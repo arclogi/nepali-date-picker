@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import { NepaliCalendar, type NepaliCalendarProps } from './NepaliCalendar';
 import { getCalendarBounds } from './bounds';
+import { toDisabledMatcher, toValidDate } from './sanitize';
 
 type NativeInputProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -104,6 +105,12 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     const rootRef = React.useRef<HTMLDivElement>(null);
     const inputRef = React.useRef<HTMLInputElement | null>(null);
     const popoverRef = React.useRef<HTMLDivElement>(null);
+    // Safari (and Firefox on macOS) does not focus a clicked button, so pressing a day can blur
+    // the input with no related target. A press that starts inside the component keeps the
+    // popover open until it ends in a click, a focus change inside, a cancel, or a release
+    // outside. A release inside does not end it, because iOS fires the focus-changing mousedown
+    // only after pointerup.
+    const pointerDownInsideRef = React.useRef(false);
     const isControlled = value !== undefined;
     const isOpenControlled = openProp !== undefined;
     const [internalValue, setInternalValue] = React.useState<NepaliDateValue | null>(
@@ -115,10 +122,14 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     const [placement, setPlacement] = React.useState<'bottom' | 'top'>('bottom');
     const requestedOpen = isOpenControlled ? openProp : internalOpen;
     const open = !disabled && requestedOpen;
-    const selectedValue = isControlled ? (value ?? null) : internalValue;
+    const rawValue = isControlled ? (value ?? null) : internalValue;
+    // Invalid or out-of-range values render empty (and marked invalid) instead of throwing.
+    const selectedValue = toValidDate(rawValue, isControlled ? 'value' : 'defaultValue');
+    const valueIsInvalid = rawValue !== null && selectedValue === null;
     const displayValue = selectedValue ? formatNepaliDate(selectedValue, format, locale) : '';
     const inputValue = draft ?? displayValue;
     const bounds = getCalendarBounds(minDate, maxDate);
+    const disabledMatcher = React.useMemo(() => toDisabledMatcher(disabledDates), [disabledDates]);
 
     const setInputNode = React.useCallback(
       (node: HTMLInputElement | null) => {
@@ -165,6 +176,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       function handlePointerDown(event: PointerEvent): void {
         const target = event.target;
         if (target instanceof Node && !rootRef.current?.contains(target)) {
+          pointerDownInsideRef.current = false;
           closePopover(false);
         }
       }
@@ -172,6 +184,23 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       document.addEventListener('pointerdown', handlePointerDown);
       return () => document.removeEventListener('pointerdown', handlePointerDown);
     }, [closePopover, open]);
+
+    // A press that started inside but was released outside gets no click inside, so end it here.
+    React.useEffect(() => {
+      function handlePointerUp(event: PointerEvent): void {
+        if (!pointerDownInsideRef.current) {
+          return;
+        }
+
+        const target = event.target;
+        if (!(target instanceof Node) || !rootRef.current?.contains(target)) {
+          pointerDownInsideRef.current = false;
+        }
+      }
+
+      document.addEventListener('pointerup', handlePointerUp, true);
+      return () => document.removeEventListener('pointerup', handlePointerUp, true);
+    }, []);
 
     React.useEffect(() => {
       if (disabled && requestedOpen) {
@@ -245,7 +274,10 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
         // Unparseable text falls back to the last committed value.
         return;
       }
-      if (!isDateDisabled(parsed, disabledDates, bounds)) {
+      if (
+        !bounds.empty &&
+        !isDateDisabled(parsed, disabledMatcher, { max: bounds.max, min: bounds.min })
+      ) {
         updateValue(parsed);
       }
     }
@@ -307,21 +339,38 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     }
 
     function handleRootBlur(event: React.FocusEvent<HTMLDivElement>): void {
-      if (
-        open &&
-        !(event.relatedTarget instanceof Node && rootRef.current?.contains(event.relatedTarget))
-      ) {
-        closePopover(false);
+      const nextFocus = event.relatedTarget;
+      if (!open || (nextFocus instanceof Node && rootRef.current?.contains(nextFocus))) {
+        return;
       }
+
+      // Safari: a press inside the component that did not move focus to a focusable element.
+      if (nextFocus === null && pointerDownInsideRef.current) {
+        return;
+      }
+
+      closePopover(false);
+    }
+
+    function handleRootPointerDown(): void {
+      pointerDownInsideRef.current = true;
+    }
+
+    function endPointerPress(): void {
+      pointerDownInsideRef.current = false;
     }
 
     return (
       <div
         className={cx('ndp-input', className)}
         data-disabled={disabled || undefined}
-        data-invalid={inputProps['aria-invalid'] || undefined}
+        data-invalid={valueIsInvalid ? true : inputProps['aria-invalid'] || undefined}
         onBlur={handleRootBlur}
+        onClick={endPointerPress}
+        onFocus={endPointerPress}
         onKeyDown={handleRootKeyDown}
+        onPointerCancel={endPointerPress}
+        onPointerDown={handleRootPointerDown}
         ref={rootRef}
       >
         <div className="ndp-input__control">
@@ -330,6 +379,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
             aria-controls={open ? popoverId : undefined}
             aria-expanded={open}
             aria-haspopup="dialog"
+            aria-invalid={inputProps['aria-invalid'] ?? (valueIsInvalid || undefined)}
             className={cx('ndp-input__field', inputClassName)}
             disabled={disabled}
             id={inputId}
@@ -345,7 +395,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
             type="text"
             value={inputValue}
           />
-          {clearable && selectedValue ? (
+          {/* An invalid value can be cleared too, but only by an explicit press. */}
+          {clearable && (selectedValue || valueIsInvalid) ? (
             <button
               aria-label={locale === 'ne' ? 'मिति हटाउनुहोस्' : 'Clear date'}
               className="ndp-input__button"
@@ -439,6 +490,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
             id={popoverId}
             ref={popoverRef}
             role="dialog"
+            // Focusable as a press target, so Safari moves focus here instead of to <body>.
+            tabIndex={-1}
           >
             <span aria-hidden="true" className="ndp-input__popover-caret" />
             <NepaliCalendar
@@ -449,8 +502,8 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
               disabledDates={disabledDates}
               format={format}
               locale={locale}
-              maxDate={bounds.max}
-              minDate={bounds.min}
+              maxDate={maxDate}
+              minDate={minDate}
               onChange={handleSelect}
               value={selectedValue}
               viewDate={viewDate}

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { NepaliCalendar, NepaliDateInput } from '../src/components';
+import type { NepaliDateValue } from '../src/types';
 
 describe('React components', () => {
   it('selects a date from the standalone calendar', async () => {
@@ -407,5 +408,516 @@ describe('React components', () => {
     expect(screen.getByRole('grid')).toHaveAccessibleName('बैशाख २०८१ को पात्रो');
     expect(screen.getByRole('button', { name: 'अघिल्लो महिना' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'महिना' })).toBeInTheDocument();
+  });
+});
+
+describe('Popover focus handling', () => {
+  it('keeps the popover open when a press inside blurs the input without a related target', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <NepaliDateInput
+        defaultViewDate={{ year: 2081, month: 1 }}
+        onChange={handleChange}
+        placeholder="DOB"
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('DOB');
+    await user.click(input);
+    const day = screen.getByRole('gridcell', { name: 'Saturday, 01 Baisakh 2081' });
+
+    // Safari does not focus a pressed button, so the input blurs with no related target.
+    fireEvent.pointerDown(day);
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.click(day);
+    expect(handleChange).toHaveBeenCalledWith(
+      { year: 2081, month: 1, day: 1 },
+      expect.objectContaining({ formatted: '2081-01-01' }),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(input).toHaveFocus();
+  });
+
+  it('makes the popover the focus target for presses on its non-focusable parts', async () => {
+    const user = userEvent.setup();
+
+    render(<NepaliDateInput defaultViewDate={{ year: 2081, month: 1 }} placeholder="DOB" />);
+
+    await user.click(screen.getByPlaceholderText('DOB'));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('tabindex', '-1');
+
+    await user.click(dialog);
+    expect(dialog).toHaveFocus();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('closes on a later blur once the press inside has ended', async () => {
+    const user = userEvent.setup();
+
+    render(<NepaliDateInput defaultViewDate={{ year: 2081, month: 1 }} placeholder="DOB" />);
+
+    const input = screen.getByPlaceholderText('DOB');
+    // The opening press ends with a click.
+    await user.click(input);
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // A cancelled press (for example a scroll gesture) ends without a click.
+    await user.click(input);
+    const day = screen.getByRole('gridcell', { name: 'Saturday, 01 Baisakh 2081' });
+    fireEvent.pointerDown(day);
+    fireEvent.pointerCancel(day);
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  // Each press below starts on a part of the popover that cannot take focus, and each test ends
+  // the press in exactly one way before a blur with no related target (for example switching
+  // windows), which must close the popover again.
+  async function openWithPressInside(): Promise<HTMLElement> {
+    const user = userEvent.setup();
+    const input = screen.getByPlaceholderText('DOB');
+    await user.click(input);
+    fireEvent.pointerDown(screen.getByText('Baisakh 2081', { selector: '.ndp-calendar__heading' }));
+    return input;
+  }
+
+  it('ends a press inside when it finishes with a click', async () => {
+    render(<NepaliDateInput defaultViewDate={{ year: 2081, month: 1 }} placeholder="DOB" />);
+    const input = await openWithPressInside();
+
+    fireEvent.click(screen.getByText('Baisakh 2081', { selector: '.ndp-calendar__heading' }));
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('ends a press inside when focus moves inside without a click', async () => {
+    render(<NepaliDateInput defaultViewDate={{ year: 2081, month: 1 }} placeholder="DOB" />);
+    await openWithPressInside();
+
+    const day = screen.getByRole('gridcell', { name: 'Saturday, 01 Baisakh 2081' });
+    act(() => day.focus());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.blur(day, { relatedTarget: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('ends a press inside when a later press starts outside', async () => {
+    const handleOpenChange = vi.fn();
+    render(
+      <NepaliDateInput
+        defaultViewDate={{ year: 2081, month: 1 }}
+        onOpenChange={handleOpenChange}
+        open
+        placeholder="DOB"
+      />,
+    );
+    const input = await openWithPressInside();
+
+    // The open state is controlled, so the popover stays rendered after the outside press.
+    fireEvent.pointerDown(document.body);
+    expect(handleOpenChange).toHaveBeenLastCalledWith(false);
+    handleOpenChange.mockClear();
+
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(handleOpenChange).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it('ends a press inside when it is released outside, but not when released inside', async () => {
+    render(<NepaliDateInput defaultViewDate={{ year: 2081, month: 1 }} placeholder="DOB" />);
+    const input = await openWithPressInside();
+    const heading = screen.getByText('Baisakh 2081', { selector: '.ndp-calendar__heading' });
+
+    // iOS moves focus only after pointerup, so a release inside keeps the press going.
+    fireEvent.pointerUp(heading);
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // A drag that leaves the component gets no click inside.
+    fireEvent.pointerDown(heading);
+    fireEvent.pointerUp(document.body);
+    fireEvent.blur(input, { relatedTarget: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('closes during a press inside when focus moves to an element outside', async () => {
+    render(
+      <>
+        <NepaliDateInput defaultViewDate={{ year: 2081, month: 1 }} placeholder="DOB" />
+        <button type="button">Outside</button>
+      </>,
+    );
+    const input = await openWithPressInside();
+
+    fireEvent.blur(input, { relatedTarget: screen.getByRole('button', { name: 'Outside' }) });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('Weekday attributes', () => {
+  it('exposes the weekday index on headers and day cells', () => {
+    render(<NepaliCalendar value={{ year: 2083, month: 7, day: 4 }} weekStartsOn={1} />);
+
+    expect(
+      screen.getAllByRole('columnheader').map((header) => header.getAttribute('data-weekday')),
+    ).toEqual(['1', '2', '3', '4', '5', '6', '0']);
+    expect(screen.getByRole('columnheader', { name: 'Sat' })).toHaveAttribute('data-weekday', '6');
+    expect(screen.getByRole('gridcell', { name: 'Saturday, 07 Kartik 2083' })).toHaveAttribute(
+      'data-weekday',
+      '6',
+    );
+
+    // Every row lines up with the headers.
+    for (const row of within(screen.getByRole('grid')).getAllByRole('row').slice(1)) {
+      expect(
+        within(row)
+          .getAllByRole('gridcell')
+          .map((cell) => cell.getAttribute('data-weekday')),
+      ).toEqual(['1', '2', '3', '4', '5', '6', '0']);
+    }
+  });
+
+  it('sets the weekday on empty cells at the supported-range boundary', () => {
+    render(<NepaliCalendar viewDate={{ year: 2000, month: 1 }} />);
+
+    const firstWeek = within(screen.getByRole('grid')).getAllByRole('row')[1]!;
+    const cells = within(firstWeek).getAllByRole('gridcell');
+    expect(cells.map((cell) => cell.getAttribute('data-weekday'))).toEqual([
+      '0',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+    ]);
+    expect(cells[0]).toHaveClass('ndp-calendar__day--empty');
+    expect(cells[3]).toHaveAccessibleName('Wednesday, 01 Baisakh 2000');
+  });
+});
+
+describe('Calendar dates around Kartik 2083', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 21, 12));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows 2026-10-21 as Wednesday 04 Kartik and lets users pick 31 Aswin 2083', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(<NepaliCalendar onChange={handleChange} />);
+
+    expect(screen.getByRole('grid')).toHaveAccessibleName('Calendar for Kartik 2083');
+    const today = screen.getByRole('gridcell', { current: 'date' });
+    expect(today).toHaveAccessibleName('Wednesday, 04 Kartik 2083');
+    expect(today).toHaveAttribute('data-weekday', '3');
+
+    await user.click(screen.getByRole('button', { name: 'Today' }));
+    expect(handleChange).toHaveBeenLastCalledWith(
+      { year: 2083, month: 7, day: 4 },
+      expect.objectContaining({ formatted: '2083-07-04' }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Previous month' }));
+    await user.click(screen.getByRole('gridcell', { name: 'Saturday, 31 Aswin 2083' }));
+    expect(handleChange).toHaveBeenLastCalledWith(
+      { year: 2083, month: 6, day: 31 },
+      expect.objectContaining({ ad: new Date(2026, 9, 17, 12) }),
+    );
+  });
+});
+
+describe('Invalid props', () => {
+  let warn: MockInstance<typeof console.warn>;
+
+  beforeEach(() => {
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warn.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it.each<[string, unknown]>([
+    ['an impossible day', { year: 2083, month: 6, day: 32 }],
+    ['an AD date read as BS', { year: 2026, month: 10, day: 31 }],
+    ['a month out of range', { year: 2081, month: 13, day: 1 }],
+    ['a year after the supported range', { year: 2095, month: 1, day: 1 }],
+    ['a fractional year', { year: 2081.5, month: 1, day: 1 }],
+    ['a string from untyped code', '2081-01-01'],
+  ])('renders %s as an empty, invalid value instead of throwing', (_, value) => {
+    const date = value as NepaliDateValue;
+    const { container } = render(
+      <>
+        <NepaliDateInput name="decided" onChange={vi.fn()} placeholder="DOB" value={date} />
+        <NepaliCalendar defaultViewDate={{ year: 2081, month: 1 }} value={date} />
+      </>,
+    );
+
+    const input = screen.getByPlaceholderText('DOB');
+    expect(input).toHaveValue('');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(container.querySelector('.ndp-input')).toHaveAttribute('data-invalid', 'true');
+    expect(container.querySelector('input[type="hidden"]')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Clear date' })).toBeInTheDocument();
+
+    expect(container.querySelector('.ndp-calendar')).toHaveAttribute('data-invalid', 'true');
+    expect(screen.getByRole('grid')).toHaveAccessibleName('Calendar for Baisakh 2081');
+    expect(
+      screen
+        .getAllByRole('gridcell')
+        .filter((cell) => cell.getAttribute('aria-selected') === 'true'),
+    ).toHaveLength(0);
+  });
+
+  it('warns once per invalid value in development', () => {
+    const value = { year: 2083, month: 6, day: 33 };
+    const { rerender } = render(<NepaliDateInput onChange={vi.fn()} value={value} />);
+    rerender(<NepaliDateInput onChange={vi.fn()} value={{ ...value }} />);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Ignoring invalid value {"year":2083,"month":6,"day":33}'),
+    );
+  });
+
+  it('stays silent in production builds', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    render(<NepaliCalendar value={{ year: 2081, month: 1, day: 40 }} />);
+
+    expect(screen.getByRole('grid')).toBeInTheDocument();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('respects an aria-invalid passed by the consumer', () => {
+    const { container } = render(
+      <NepaliDateInput aria-invalid="false" value={{ year: 2081, month: 1, day: 41 }} />,
+    );
+
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-invalid', 'false');
+    expect(container.querySelector('.ndp-input')).toHaveAttribute('data-invalid', 'true');
+  });
+
+  it('replaces an invalid value when the user picks a date', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <NepaliDateInput
+        defaultValue={{ year: 2026, month: 11, day: 31 }}
+        defaultViewDate={{ year: 2083, month: 7 }}
+        onChange={handleChange}
+        placeholder="DOB"
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('DOB');
+    expect(input).toHaveValue('');
+    expect(handleChange).not.toHaveBeenCalled();
+
+    await user.click(input);
+    await user.click(screen.getByRole('gridcell', { name: 'Wednesday, 04 Kartik 2083' }));
+
+    expect(input).toHaveValue('2083-07-04');
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Ignoring invalid defaultValue'));
+  });
+
+  it('clears an invalid value only when the user presses Clear', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+    const invalidValue = { year: 2083, month: 6, day: 32 };
+
+    const { rerender } = render(
+      <NepaliDateInput onChange={handleChange} placeholder="DOB" value={invalidValue} />,
+    );
+    expect(screen.getByPlaceholderText('DOB')).toHaveAttribute('aria-invalid', 'true');
+    expect(handleChange).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Clear date' }));
+    expect(handleChange).toHaveBeenCalledExactlyOnceWith(null, null);
+
+    rerender(<NepaliDateInput onChange={handleChange} placeholder="DOB" value={null} />);
+    const input = screen.getByPlaceholderText('DOB');
+    expect(input).toHaveFocus();
+    expect(input).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByRole('button', { name: 'Clear date' })).not.toBeInTheDocument();
+  });
+
+  it('makes nothing selectable when minDate is after maxDate', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <NepaliCalendar
+        maxDate={{ year: 2083, month: 7, day: 5 }}
+        minDate={{ year: 2083, month: 7, day: 10 }}
+        onChange={handleChange}
+      />,
+    );
+
+    expect(screen.getByRole('grid')).toHaveAccessibleName('Calendar for Kartik 2083');
+    const days = screen.getAllByRole('gridcell').filter((cell) => cell.tagName === 'BUTTON');
+    expect(days.length).toBeGreaterThan(0);
+    expect(days.every((day) => day.getAttribute('aria-disabled') === 'true')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Previous month' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+    expect(
+      within(screen.getByRole('combobox', { name: 'Year' })).getAllByRole('option'),
+    ).toHaveLength(1);
+
+    await user.click(screen.getByRole('gridcell', { name: /07 Kartik 2083/ }));
+    expect(handleChange).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('minDate 2083-07-10 is after maxDate 2083-07-05'),
+    );
+  });
+
+  it('rejects typed dates when minDate is after maxDate', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <NepaliDateInput
+        maxDate={{ year: 2083, month: 1, day: 1 }}
+        minDate={{ year: 2084, month: 1, day: 1 }}
+        onChange={handleChange}
+        readOnly={false}
+      />,
+    );
+
+    const input = screen.getByRole('combobox');
+    // Inverted bounds collapse to the minDate, so type that date: it must still be rejected.
+    await user.type(input, '2084-01-01');
+    await user.keyboard('{Enter}');
+
+    expect(input).toHaveValue('');
+    expect(handleChange).not.toHaveBeenCalled();
+  });
+
+  it('ignores invalid disabledDates entries instead of throwing', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    render(
+      <NepaliDateInput
+        defaultViewDate={{ year: 2081, month: 1 }}
+        disabledDates={[
+          { year: 2081, month: 1, day: 2 },
+          { year: 2081, month: 2, day: 33 },
+        ]}
+        onChange={handleChange}
+        placeholder="DOB"
+        readOnly={false}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('DOB');
+    await user.type(input, '2081-01-03');
+    await user.keyboard('{Enter}');
+    expect(handleChange).toHaveBeenLastCalledWith(
+      { year: 2081, month: 1, day: 3 },
+      expect.objectContaining({ formatted: '2081-01-03' }),
+    );
+
+    await user.click(input);
+    expect(screen.getByRole('gridcell', { name: 'Sunday, 02 Baisakh 2081' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('gridcell', { name: 'Monday, 03 Baisakh 2081' })).toHaveAttribute(
+      'aria-disabled',
+      'false',
+    );
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('Ignoring invalid disabledDates entry'),
+    );
+  });
+
+  it('makes nothing selectable when minDate or maxDate is invalid', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+
+    // For example a maxDate computed from an AD date, which must not open up future dates.
+    const { unmount } = render(
+      <NepaliCalendar
+        maxDate={{ year: 2083, month: 6, day: 32 }}
+        onChange={handleChange}
+        value={{ year: 2083, month: 7, day: 4 }}
+      />,
+    );
+
+    expect(screen.getByRole('grid')).toHaveAccessibleName('Calendar for Kartik 2083');
+    const days = screen.getAllByRole('gridcell').filter((cell) => cell.tagName === 'BUTTON');
+    expect(days.every((day) => day.getAttribute('aria-disabled') === 'true')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Previous month' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+    await user.click(screen.getByRole('gridcell', { name: 'Wednesday, 04 Kartik 2083' }));
+    expect(handleChange).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Invalid maxDate {"year":2083,"month":6,"day":32}: expected an existing BS date, so no ' +
+          'date can be selected.',
+      ),
+    );
+    unmount();
+
+    render(
+      <NepaliDateInput
+        minDate={{ year: 2081, month: 2, day: 34 }}
+        onChange={handleChange}
+        placeholder="DOB"
+        readOnly={false}
+      />,
+    );
+    const input = screen.getByPlaceholderText('DOB');
+    await user.type(input, '2081-03-01');
+    await user.keyboard('{Enter}');
+    expect(input).toHaveValue('');
+    expect(handleChange).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Invalid minDate'));
+  });
+
+  it('falls back from malformed view months', () => {
+    const { rerender } = render(
+      <NepaliCalendar
+        value={{ year: 2082, month: 5, day: 10 }}
+        viewDate={{ year: 2081, month: 0 }}
+      />,
+    );
+    expect(screen.getByRole('grid')).toHaveAccessibleName('Calendar for Bhadra 2082');
+
+    rerender(<NepaliCalendar defaultViewDate={{ year: 2081.5, month: 1 }} key="uncontrolled" />);
+    expect(screen.getByRole('grid')).toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Ignoring invalid viewDate'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Ignoring invalid defaultViewDate'));
+  });
+
+  it('renders without a today marker when the device clock is outside the supported range', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2040, 0, 1, 12));
+    try {
+      render(<NepaliCalendar onChange={vi.fn()} />);
+
+      expect(screen.getByRole('grid')).toHaveAccessibleName('Calendar for Chaitra 2090');
+      expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+      expect(screen.queryByRole('gridcell', { current: 'date' })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

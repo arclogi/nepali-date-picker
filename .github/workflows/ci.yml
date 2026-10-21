@@ -46,6 +46,13 @@ jobs:
       - name: Build demo
         run: npm run demo:build
 
+      # Packs the package (prepack repeats the checks above), so run it on one Node version.
+      - name: Check package exports and types
+        if: matrix.node == 24
+        run: |
+          npx --yes publint@0.3.25 --strict
+          npx --yes @arethetypeswrong/cli@0.18.5 --pack .
+
   compatibility:
     name: React ${{ matrix.react }} / TypeScript ${{ matrix.typescript }}
     runs-on: ubuntu-latest

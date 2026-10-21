@@ -55,7 +55,7 @@ export function getNepaliMonthGrid(options: NepaliMonthGridOptions): NepaliCalen
   const daysUntilEnd = Math.round((supportedAdRange.max.getTime() - firstDayAd.getTime()) / DAY_MS);
   const startOffset = -Math.min(leadingDays, daysBeforeStart);
   const endOffset = Math.min(cells - leadingDays - 1, daysUntilEnd);
-  const today = getNepaliToday();
+  const today = getTodayIfSupported();
 
   return Array.from({ length: endOffset - startOffset + 1 }, (_, index) => {
     const adDate = new Date(
@@ -69,7 +69,7 @@ export function getNepaliMonthGrid(options: NepaliMonthGridOptions): NepaliCalen
     return {
       adDate,
       date,
-      isToday: isSameNepaliDate(date, today),
+      isToday: today ? isSameNepaliDate(date, today) : false,
       key: toNepaliDateKey(date),
       outsideMonth: date.year !== options.year || date.month !== options.month,
       weekday: adDate.getDay() as WeekdayIndex,
@@ -131,4 +131,13 @@ export function isDateDisabled(
   }
 
   return matcher.some((disabledDate) => isSameNepaliDate(disabledDate, date));
+}
+
+// A device clock outside the supported range has no BS "today"; the grid still renders.
+function getTodayIfSupported(): NepaliDateValue | null {
+  try {
+    return getNepaliToday();
+  } catch {
+    return null;
+  }
 }

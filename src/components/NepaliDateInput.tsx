@@ -13,6 +13,7 @@ import type {
   NepaliDateValue,
   NepaliLocale,
   NepaliMonthValue,
+  TodayButtonPlacement,
   WeekdayIndex,
 } from '../types';
 import { NepaliCalendar, type NepaliCalendarProps } from './NepaliCalendar';
@@ -57,6 +58,11 @@ export interface NepaliDateInputProps extends NativeInputProps {
   onOpenChange?: ((open: boolean) => void) | undefined;
   open?: boolean | undefined;
   popoverClassName?: string | undefined;
+  /**
+   * Where the calendar shows its Today button: under the days (`'footer'`, the default) or in the
+   * header, next to the month and year selects (`'header'`). Overrides `calendarProps`.
+   */
+  todayButtonPlacement?: TodayButtonPlacement | undefined;
   value?: NepaliDateValue | null;
   viewDate?: NepaliMonthValue | undefined;
   weekStartsOn?: WeekdayIndex | undefined;
@@ -92,6 +98,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
       placeholder = locale === 'ne' ? 'मिति छान्नुहोस्' : 'Select date',
       popoverClassName,
       readOnly = true,
+      todayButtonPlacement,
       value,
       viewDate,
       weekStartsOn,
@@ -334,7 +341,11 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
     function handleRootKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
       if (event.key === 'Escape' && open) {
         event.stopPropagation();
-        closePopover(true);
+        // Escape in the open list of the month or year select closes only that list (the browser
+        // does that); the calendar stays open. Customizable selects send it from the focused option.
+        if (!isInOpenSelect(event.target)) {
+          closePopover(true);
+        }
       }
     }
 
@@ -505,6 +516,7 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
               maxDate={maxDate}
               minDate={minDate}
               onChange={handleSelect}
+              todayButtonPlacement={todayButtonPlacement ?? calendarProps?.todayButtonPlacement}
               value={selectedValue}
               viewDate={viewDate}
               weekStartsOn={weekStartsOn}
@@ -518,4 +530,17 @@ export const NepaliDateInput = React.forwardRef<HTMLInputElement, NepaliDateInpu
 
 function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(' ');
+}
+
+/** Whether the event comes from a select whose list is open (`:open`, customizable selects). */
+function isInOpenSelect(target: EventTarget | null): boolean {
+  const select = target instanceof Element ? target.closest('select') : null;
+  if (!select) {
+    return false;
+  }
+  try {
+    return select.matches(':open');
+  } catch {
+    return false; // a browser without :open draws the list outside the page
+  }
 }

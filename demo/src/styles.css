@@ -312,6 +312,20 @@ a {
   color: #0f766e;
 }
 
+.demo-option {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 0 0 14px;
+}
+
+.demo-option-label {
+  color: #5b6560;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
 .demo-calendar-frame {
   align-items: center;
   display: flex;

@@ -1,6 +1,6 @@
 {
   "name": "@arclogi/nepali-date-picker",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Accessible React components and TypeScript utilities for Bikram Sambat Nepali date input.",
   "type": "module",
   "license": "MIT",
@@ -103,6 +103,7 @@
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
     "happy-dom": "^20.10.6",
+    "playwright-core": "^1.64.0",
     "prettier": "^3.9.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
+import { parseCss } from './cascade';
 
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 
@@ -8,12 +9,16 @@ describe('Stylesheet', () => {
     // rgb(var(--ndp-accent-rgb) / x%) is invalid with the documented comma triplet, which
     // dropped the focus ring, hover borders, and the selected-day shadow.
     expect(css).not.toMatch(/rgb\(\s*var\(/);
+    // The input's focus ring reads --ndp-focus, which falls back to --ndp-accent.
     expect(css).toMatch(
-      /\.ndp-input__control:focus-within\s*\{[^}]*box-shadow:\s*0 0 0 3px color-mix\(in srgb, var\(--ndp-accent\) 14%, transparent\);/,
+      /\.ndp-input__control:focus-within\s*\{[^}]*box-shadow:\s*0 0 0 3px color-mix\(in srgb, var\(--ndp-focus, var\(--ndp-accent\)\) 14%, transparent\);/,
     );
     expect(css.match(/color-mix\(in srgb, var\(--ndp-accent\) \d+%, transparent\)/g)).toHaveLength(
-      5,
+      4,
     );
+    expect(
+      css.match(/color-mix\(in srgb, var\(--ndp-focus, var\(--ndp-accent\)\) \d+%, transparent\)/g),
+    ).toHaveLength(1);
   });
 
   it('keeps --ndp-accent-rgb defined so existing overrides stay valid', () => {
@@ -45,5 +50,39 @@ describe('Stylesheet', () => {
 
   it('hides the outline of the popover, which takes focus only as a press target', () => {
     expect(css).toMatch(/\.ndp-input__popover:focus\s*\{\s*outline: none;\s*\}/);
+  });
+
+  it('keeps the 1.0.4 footer Today: a centred button in a ruled row under the days', () => {
+    const footer = css.match(/\n\.ndp-calendar__footer \{([^}]*)\}/)![1]!;
+    expect(footer).toMatch(/border-top: 1px solid var\(--ndp-border\);/);
+    expect(footer).toMatch(/justify-content: center;/);
+    expect(footer).toMatch(/margin-top: 10px;/);
+    expect(footer).toMatch(/padding-top: 8px;/);
+    const today = css.match(/\n\.ndp-calendar__today \{([^}]*)\}/)![1]!;
+    expect(today).toMatch(/padding: 8px 14px;/);
+    expect(today).not.toMatch(/min-height|display|flex/);
+    // Only a Today in the header is compact.
+    const header = css.match(/\n\.ndp-calendar__today--header \{([^}]*)\}/)![1]!;
+    expect(header).toMatch(/padding: 0 6px;/);
+    expect(header).toMatch(/flex-shrink: 0;/);
+  });
+
+  it('names customizable-select selectors only inside @supports (appearance: base-select)', () => {
+    // A browser that does not know ::picker-icon, ::picker(), ::checkmark or :open drops the whole
+    // selector list that names one, so such a selector never shares a list with older ones and
+    // only appears where @supports (appearance: base-select) keeps other browsers out.
+    const rules = parseCss(css, 'ndp');
+    const customizable = /::picker|::checkmark|:open\b/;
+    const found = rules.filter((rule) => rule.selectors.some((s) => customizable.test(s)));
+    expect(found.length).toBeGreaterThan(4);
+    for (const rule of found) {
+      const where = rule.selectors.join(', ');
+      expect(rule.conditions, where).toContain('@supports (appearance: base-select)');
+    }
+  });
+
+  it('no longer draws the select chevron with a fixed colour', () => {
+    // The fallback chevron is two gradients in --ndp-muted; the old data URI had a fixed grey.
+    expect(css).not.toMatch(/%23888f95/);
   });
 });

@@ -16,13 +16,15 @@ Live demo: [arclogi.github.io/nepali-date-picker](https://arclogi.github.io/nepa
 - `NepaliDateInput` / `NepaliDatePicker`: popover picker with typing support, clear button,
   controlled or uncontrolled value and open state, and hidden-input form integration.
 - `NepaliCalendar`: standalone month grid with fast month/year dropdown navigation and a
-  Today shortcut.
+  Today shortcut, under the days or in the header.
 - English and Nepali (Devanagari) localization.
 - Full keyboard support and WAI-ARIA grid/dialog semantics; visible focus states.
 - AD ↔ BS conversion, parsing, formatting, comparison, clamping, and date math utilities —
   also available from a server-safe `./core` entry.
 - Themeable via `--ndp-*` CSS custom properties and stable, documented class names, with an
-  opt-in dark theme.
+  opt-in dark theme and a focus colour you can set per context (`--ndp-focus`).
+- Keeps the focus rings, outlines and select arrows of a host's global form styles (for example
+  `@tailwindcss/forms`) off its own selects, buttons and input.
 - BS 2000 – BS 2090 supported range with safe, non-crashing behavior at the boundaries.
 
 ## Install
@@ -103,6 +105,7 @@ manages) plus:
 | `viewDate` / `defaultViewDate`                                            | `NepaliMonthValue`                       | —              | Controlled / initial visible month.                                                                                                          |
 | `weekStartsOn`                                                            | `0–6`                                    | `0` (Sunday)   | First day of the week.                                                                                                                       |
 | `calendarProps`                                                           | `object`                                 | —              | Extra props for the embedded `NepaliCalendar` (e.g. `showTodayButton`).                                                                      |
+| `todayButtonPlacement`                                                    | `'footer' \| 'header'`                   | `'footer'`     | Where the calendar shows its Today button (see `NepaliCalendar`). Overrides `calendarProps.todayButtonPlacement`.                            |
 | `className` / `inputClassName` / `popoverClassName` / `calendarClassName` | `string`                                 | —              | Class hooks for each layer.                                                                                                                  |
 
 A `ref` is forwarded to the native `<input>` element.
@@ -117,25 +120,48 @@ popover held open.
 
 The standalone month grid used inside the popover.
 
-| Prop                           | Type                                     | Default                | Description                                                                        |
-| ------------------------------ | ---------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
-| `value`                        | `NepaliDateValue \| null`                | —                      | Selected date. The visible month follows controlled value changes.                 |
-| `onChange`                     | `(date, context) => void`                | —                      | Selection callback.                                                                |
-| `viewDate` / `defaultViewDate` | `NepaliMonthValue`                       | —                      | Controlled / initial visible month.                                                |
-| `onViewDateChange`             | `(view) => void`                         | —                      | Visible month change requests.                                                     |
-| `minDate` / `maxDate`          | `NepaliDateValue`                        | —                      | Bounds for selection, navigation, and the year dropdown.                           |
-| `disabledDates`                | `NepaliDateValue[] \| (date) => boolean` | —                      | Unselectable dates (kept focusable for keyboard users, per the ARIA grid pattern). |
-| `showTodayButton`              | `boolean`                                | `true`                 | Show the Today shortcut in the footer.                                             |
-| `locale`                       | `'en' \| 'ne'`                           | `'en'`                 | Month names, weekday names, and digits.                                            |
-| `weekStartsOn`                 | `0–6`                                    | `0`                    | First day of the week.                                                             |
-| `fixedWeeks`                   | `boolean`                                | `true`                 | Always render six weeks.                                                           |
-| `format`                       | `string`                                 | `'YYYY-MM-DD'`         | Format used for the `context.formatted` value.                                     |
-| `ariaLabel`                    | `string`                                 | `Calendar for <month>` | Accessible name for the grid.                                                      |
-| `autoFocus`                    | `boolean`                                | `false`                | Move focus into the grid on mount (used by the popover for keyboard openers).      |
+| Prop                           | Type                                     | Default                | Description                                                                                                                                    |
+| ------------------------------ | ---------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `value`                        | `NepaliDateValue \| null`                | —                      | Selected date. The visible month follows controlled value changes.                                                                             |
+| `onChange`                     | `(date, context) => void`                | —                      | Selection callback.                                                                                                                            |
+| `viewDate` / `defaultViewDate` | `NepaliMonthValue`                       | —                      | Controlled / initial visible month.                                                                                                            |
+| `onViewDateChange`             | `(view) => void`                         | —                      | Visible month change requests.                                                                                                                 |
+| `minDate` / `maxDate`          | `NepaliDateValue`                        | —                      | Bounds for selection, navigation, and the year dropdown.                                                                                       |
+| `disabledDates`                | `NepaliDateValue[] \| (date) => boolean` | —                      | Unselectable dates (kept focusable for keyboard users, per the ARIA grid pattern).                                                             |
+| `showTodayButton`              | `boolean`                                | `true`                 | Show the Today shortcut.                                                                                                                       |
+| `todayButtonPlacement`         | `'footer' \| 'header'`                   | `'footer'`             | `'footer'`: a button in a row under the days, as before. `'header'`: a compact text button after the month and year selects, so that row goes. |
+| `locale`                       | `'en' \| 'ne'`                           | `'en'`                 | Month names, weekday names, and digits.                                                                                                        |
+| `weekStartsOn`                 | `0–6`                                    | `0`                    | First day of the week.                                                                                                                         |
+| `fixedWeeks`                   | `boolean`                                | `true`                 | Always render six weeks.                                                                                                                       |
+| `format`                       | `string`                                 | `'YYYY-MM-DD'`         | Format used for the `context.formatted` value.                                                                                                 |
+| `ariaLabel`                    | `string`                                 | `Calendar for <month>` | Accessible name for the grid.                                                                                                                  |
+| `autoFocus`                    | `boolean`                                | `false`                | Move focus into the grid on mount (used by the popover for keyboard openers).                                                                  |
 
 Keyboard: arrow keys move by day/week, `Home`/`End` jump to the week edges, `PageUp`/`PageDown`
 switch months, `Enter`/`Space` select. Month and year dropdowns in the header jump anywhere in
 the supported range without paging.
+
+The Today button (labelled "Today", or "आज" with `locale="ne"`) selects today and moves focus to
+it; it is disabled when today cannot be picked (outside `minDate` / `maxDate`, in
+`disabledDates`, or a device clock outside the supported range). Its place in the Tab order
+follows where it is shown: with `todayButtonPlacement="header"` it comes straight after the year
+select (previous month, month, year, Today, next month, then the days); in the footer it comes
+after the days.
+
+```tsx
+<NepaliDateInput locale="ne" todayButtonPlacement="header" />
+```
+
+In the header, the month, the year and Today share the room between the previous and next
+buttons. As that room narrows, the selects tighten their padding, then switch to smaller text, then
+drop their chevron, so all three stay whole in a room of 11rem (176px) or more: a calendar from
+286px wide with the default 14px padding and 36px buttons. That holds for Inter, the macOS system
+font, Arial, Helvetica and Georgia; a font as wide as Verdana can cut the month by a few pixels at
+some widths. In a narrower room only the month name is cut, never the year or Today. The room is a
+size container named `ndp-selects` (the calendar itself is `ndp-calendar`), so the steps follow the
+width it really has, whatever padding or button size your styles give the calendar. An unnamed
+`@container` query in your styles for the selects or the header Today resolves against that room;
+name `ndp-calendar` to query the calendar instead.
 
 ## Utilities
 
@@ -190,7 +216,7 @@ scoped to any wrapper:
 
 ```css
 :root {
-  --ndp-accent: #0f766e; /* primary accent (selected day, focus rings) */
+  --ndp-accent: #0f766e; /* primary accent (selected day; focus rings unless --ndp-focus is set) */
   --ndp-accent-strong: #115e59; /* hover accent */
   --ndp-accent-soft: #ccfbf1; /* soft accent fills */
   --ndp-text: #221f1a;
@@ -206,11 +232,83 @@ scoped to any wrapper:
 }
 ```
 
-Translucent accents (the focus ring, hover borders, and the selected-day shadow) are derived from
-`--ndp-accent` with `color-mix()` (Chrome 111, Safari 16.2, Firefox 113 or later), so
-`--ndp-accent-rgb` is no longer required. Only older browsers read it, as a fallback: it holds the
-accent as a comma-separated triplet (`--ndp-accent-rgb: 15, 118, 110;`). If you change
-`--ndp-accent` and support those browsers, set it to the same color.
+### Focus colour
+
+Every focus ring the picker draws (days, the previous/next buttons, the month and year selects and
+the option reached with the arrow keys in their open list, Today, the input and its clear and
+calendar buttons) reads `--ndp-focus`. The stylesheet leaves it
+unset, so the rings follow `--ndp-accent` until you set it. Set it on any ancestor to change the
+focus colour wherever the picker is used there, for example to match the rest of a form or to stay
+visible on a coloured surface:
+
+```css
+/* Everywhere */
+:root {
+  --ndp-focus: #2563eb;
+}
+
+/* Only in the checkout form */
+.checkout-form {
+  --ndp-focus: #7c3aed;
+}
+```
+
+```tsx
+<form className="checkout-form">
+  <NepaliDateInput name="delivery" />
+</form>
+```
+
+Because the value is read where each ring is drawn, a calendar opened from an input picks up the
+same context. To give the calendar panel a colour of its own (it is a light panel even when the
+input sits on a coloured surface), set the variable on the panel:
+
+```css
+.hero {
+  --ndp-focus: #ffffff; /* the input's ring on the coloured hero */
+}
+
+.hero .ndp-calendar {
+  --ndp-focus: #0f766e; /* the rings inside the calendar's own panel */
+}
+```
+
+### Host styles
+
+Global form styles in the host app stop at the picker's own controls: a form plugin's focus ring
+and border colour (for example `@tailwindcss/forms` on `select:focus` and `[type='text']:focus`), a
+global `:focus` outline or `button:focus` shadow, and a host's select arrow. The picker's buttons,
+selects and days show focus only with their `--ndp-focus` outline, and only for keyboard focus
+(`:focus-visible`). The input is the exception: its control draws a `--ndp-focus` border and halo
+whenever focus is inside it (`:focus-within`), from a click too. The resets name the picker's
+classes only (for example `.ndp-calendar__select:focus`, specificity 0-2-0), so nothing outside the
+picker changes. To style focus yourself, set `--ndp-focus` or use a selector more specific than
+those resets.
+
+A focused month or year select keeps its border colour. That reset,
+`select.ndp-calendar__select:not(input):where(:focus)`, has specificity 0-1-2: it beats
+`select:focus` (0-1-1) but not a border colour you give the selects with a class of your own, such
+as `.my-app .ndp-calendar__select` (0-2-0), which then applies on focus too.
+
+The text field keeps the specificity it had (`.ndp-input__field`, 0-1-0), so your own rules for it
+keep working. A host rule of the same specificity loaded after the picker's stylesheet can set its
+background and padding too; `[type='text']` in `@tailwindcss/forms` before 0.5.11 is one (0.5.11
+uses `input:where([type='text'])`, which cannot). Load the picker's stylesheet after such rules, or
+restyle the field with a more specific selector such as `.ndp-input__control .ndp-input__field`.
+
+The month and year selects draw a light chevron in `--ndp-muted`, so it follows the theme: as the
+picker icon of customizable selects (`appearance: base-select`), and as a background in other
+browsers.
+
+### Colour fallbacks
+
+Translucent colours (the input's focus halo, hover borders, and the selected-day shadow) are
+derived from `--ndp-focus` and `--ndp-accent` with `color-mix()` (Chrome 111, Safari 16.2, Firefox
+113 or later), so `--ndp-accent-rgb` is no longer required. Only older browsers read it, as a
+fallback: it holds the accent as a comma-separated triplet (`--ndp-accent-rgb: 15, 118, 110;`). If
+you change `--ndp-accent` and support those browsers, set it to the same color. Those browsers also
+draw the input's soft focus halo from it; the focus border and outlines use `--ndp-focus`
+everywhere.
 
 A dark theme ships in the stylesheet — add `class="ndp-dark"` or `data-ndp-theme="dark"` to any
 ancestor (e.g. `<html>`).
@@ -219,19 +317,20 @@ For deeper restyling, target the stable class names (kept backward compatible ac
 `ndp-input`, `ndp-input__control`, `ndp-input__field`, `ndp-input__button`, `ndp-input__popover`,
 `ndp-calendar`, `ndp-calendar__header`, `ndp-calendar__select`, `ndp-calendar__grid`,
 `ndp-calendar__week`, `ndp-calendar__weekday`, `ndp-calendar__day`, `ndp-calendar__footer`,
-`ndp-calendar__today`.
+`ndp-calendar__today` (plus `ndp-calendar__today--header` when it is in the header).
 
 State is exposed as data attributes:
 
-| Attribute            | On                                           | Values                                                                                                  |
-| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `data-weekday`       | `ndp-calendar__weekday`, `ndp-calendar__day` | Day of the week, `0` (Sunday) to `6` (Saturday).                                                        |
-| `data-today`         | `ndp-calendar__day`                          | `true` on today's date, `false` on every other day.                                                     |
-| `data-outside-month` | `ndp-calendar__day`                          | `true` on leading and trailing days of adjacent months, `false` otherwise.                              |
-| `data-invalid`       | `ndp-input`                                  | `true` when `value` is not a valid date; otherwise a copy of your `aria-invalid`, which can be `false`. |
-| `data-invalid`       | `ndp-calendar`                               | `true` when `value` is not a valid date; absent otherwise.                                              |
-| `data-disabled`      | `ndp-input`                                  | `true` when the input is disabled; absent otherwise.                                                    |
-| `data-placement`     | `ndp-input__popover`                         | `bottom` or `top`.                                                                                      |
+| Attribute              | On                                           | Values                                                                                                  |
+| ---------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `data-weekday`         | `ndp-calendar__weekday`, `ndp-calendar__day` | Day of the week, `0` (Sunday) to `6` (Saturday).                                                        |
+| `data-today`           | `ndp-calendar__day`                          | `true` on today's date, `false` on every other day.                                                     |
+| `data-outside-month`   | `ndp-calendar__day`                          | `true` on leading and trailing days of adjacent months, `false` otherwise.                              |
+| `data-invalid`         | `ndp-input`                                  | `true` when `value` is not a valid date; otherwise a copy of your `aria-invalid`, which can be `false`. |
+| `data-invalid`         | `ndp-calendar`                               | `true` when `value` is not a valid date; absent otherwise.                                              |
+| `data-disabled`        | `ndp-input`                                  | `true` when the input is disabled; absent otherwise.                                                    |
+| `data-placement`       | `ndp-input__popover`                         | `bottom` or `top`.                                                                                      |
+| `data-today-placement` | `ndp-calendar`                               | `footer` or `header`, where the Today button is; absent with `showTodayButton={false}`.                 |
 
 Match `data-today`, `data-outside-month` and `data-invalid` by value: they can be present with the
 value `false`, so `[data-today]` alone matches every day.

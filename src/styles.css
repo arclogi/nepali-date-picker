@@ -21,6 +21,9 @@
   --ndp-shadow-lg: 0 24px 48px -16px rgb(28 25 20 / 20%), 0 8px 20px -8px rgb(28 25 20 / 12%);
   --ndp-font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* --ndp-focus, the colour of every focus ring, is deliberately not set: the rings read
+     var(--ndp-focus, var(--ndp-accent)), so they follow the accent where the picker is until a host
+     sets --ndp-focus on any ancestor. */
 }
 
 /* Opt-in dark theme. */
@@ -62,6 +65,7 @@
   border-radius: var(--ndp-radius-md);
   box-shadow: var(--ndp-shadow-md);
   color: var(--ndp-text);
+  container-name: ndp-calendar;
   container-type: inline-size;
   font-family: var(--ndp-font-family);
   padding: 14px;
@@ -101,9 +105,30 @@
 
 .ndp-calendar__select {
   appearance: none;
-  background: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888f95' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    no-repeat right 8px center;
   background-color: var(--ndp-panel);
+  /* A light chevron in --ndp-muted, so it follows the theme: two 5px strokes meeting in a V. The
+     colour, image, position, repeat and size are all set, so a host's select arrow (for example
+     @tailwindcss/forms') never shows through. */
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent calc(50% - 1px),
+      var(--ndp-muted) calc(50% - 0.5px),
+      var(--ndp-muted) calc(50% + 0.5px),
+      transparent calc(50% + 1px)
+    ),
+    linear-gradient(
+      -45deg,
+      transparent calc(50% - 1px),
+      var(--ndp-muted) calc(50% - 0.5px),
+      var(--ndp-muted) calc(50% + 0.5px),
+      transparent calc(50% + 1px)
+    );
+  background-position:
+    right 13px center,
+    right 8px center;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
   border: 1px solid var(--ndp-border);
   border-radius: var(--ndp-radius-sm);
   color: var(--ndp-text);
@@ -116,6 +141,21 @@
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
+}
+
+/* Host styles for focused form controls stop at the picker's own controls: a form plugin's ring and
+   border colour (for example @tailwindcss/forms on select:focus) and a global :focus outline. The
+   picker shows keyboard focus with its --ndp-focus outline (below). These resets name the picker's
+   classes only, with enough specificity to beat element and attribute selectors such as
+   select:focus and [type='text']:focus. */
+.ndp-calendar__select:focus {
+  box-shadow: none;
+}
+
+/* The focused select keeps its border colour. Specificity 0-1-2: above select:focus (0-1-1), below
+   a host's own .my-app .ndp-calendar__select (0-2-0), which therefore keeps its colour on focus. */
+select.ndp-calendar__select:not(input):where(:focus) {
+  border-color: var(--ndp-border);
 }
 
 .ndp-calendar__select:hover {
@@ -131,8 +171,32 @@
 }
 
 .ndp-calendar__select:focus-visible {
-  outline: 2px solid var(--ndp-accent);
+  outline: 2px solid var(--ndp-focus, var(--ndp-accent));
   outline-offset: 2px;
+}
+
+/* todayButtonPlacement="header": the month, the year and Today share the room between the previous
+   and next buttons. That room is a size container (ndp-selects), so the narrower steps further down
+   follow the width it really has, whatever size a host gives the calendar or its buttons. The year
+   and Today never shrink; only the month can be cut, and only in the narrowest rooms. */
+[data-today-placement='header'] .ndp-calendar__header,
+[data-today-placement='header'] .ndp-calendar__selects {
+  gap: 4px;
+}
+
+[data-today-placement='header'] .ndp-calendar__selects {
+  container: ndp-selects / inline-size;
+}
+
+[data-today-placement='header'] .ndp-calendar__select {
+  background-position:
+    right 11px center,
+    right 6px center;
+  padding-inline: 8px 20px;
+}
+
+[data-today-placement='header'] .ndp-calendar__select--year {
+  flex-shrink: 0;
 }
 
 /* Use themed dropdowns where customizable selects are supported. */
@@ -142,13 +206,33 @@
     appearance: base-select;
   }
 
+  /* The select is a flex box here; centre its text on the row, like the icon and a header Today. */
   .ndp-calendar__select {
+    align-items: center;
     background-image: none;
+    gap: 6px;
     padding: 6px 8px 6px 10px;
   }
 
+  /* The browser's picker icon is a heavy triangle; draw the light chevron instead. */
   .ndp-calendar__select::picker-icon {
-    color: var(--ndp-muted);
+    background-color: var(--ndp-muted);
+    content: '';
+    flex-shrink: 0;
+    height: 6px;
+    mask: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      center / 10px 6px no-repeat;
+    transition: rotate 0.15s ease;
+    width: 10px;
+  }
+
+  .ndp-calendar__select:open::picker-icon {
+    rotate: 180deg;
+  }
+
+  [data-today-placement='header'] .ndp-calendar__select {
+    gap: 4px;
+    padding-inline: 8px 6px;
   }
 
   .ndp-calendar__select::picker(select) {
@@ -175,10 +259,16 @@
     margin-right: 6px;
   }
 
-  .ndp-calendar__select option:hover,
-  .ndp-calendar__select option:focus-visible {
+  .ndp-calendar__select option:hover {
     background: var(--ndp-surface);
     outline: none;
+  }
+
+  /* The option reached with the arrow keys in the open list: the focus ring, inside the option. */
+  .ndp-calendar__select option:focus-visible {
+    background: var(--ndp-surface);
+    outline: 2px solid var(--ndp-focus, var(--ndp-accent));
+    outline-offset: -2px;
   }
 
   .ndp-calendar__select option:checked {
@@ -244,16 +334,40 @@
   color: var(--ndp-muted);
 }
 
+/* Before the selected day's own shadow, which still applies when it has focus. */
+.ndp-icon-button:focus,
+.ndp-input__button:focus,
+.ndp-calendar__day:focus,
+.ndp-calendar__today:focus {
+  box-shadow: none;
+}
+
+/* Pointer focus shows no outline (a host's :focus outline included); keyboard focus gets the ring. */
+.ndp-calendar__select:focus:not(:focus-visible),
+.ndp-icon-button:focus:not(:focus-visible),
+.ndp-input__button:focus:not(:focus-visible),
+.ndp-calendar__day:focus:not(:focus-visible),
+.ndp-calendar__today:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .ndp-icon-button:focus-visible,
 .ndp-input__button:focus-visible,
 .ndp-calendar__day:focus-visible,
 .ndp-calendar__today:focus-visible {
-  outline: 2px solid var(--ndp-accent);
+  outline: 2px solid var(--ndp-focus, var(--ndp-accent));
   outline-offset: 2px;
 }
 
-/* The control supplies the input focus ring. */
+/* The control supplies the input focus ring; a host's ring or outline on text inputs stays off the
+   field inside it. */
 .ndp-input__field:focus-visible {
+  outline: none;
+}
+
+.ndp-input__control .ndp-input__field:focus {
+  border-color: transparent;
+  box-shadow: none;
   outline: none;
 }
 
@@ -403,6 +517,18 @@
     color 0.15s ease;
 }
 
+/* todayButtonPlacement="header": a compact text button after the month and year selects, as tall as
+   them (the row stretches it). It never shrinks; see the header steps below. */
+.ndp-calendar__today--header {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
+  line-height: 1.2;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
 .ndp-calendar__today:hover {
   background: var(--ndp-accent-soft);
   color: var(--ndp-accent-strong);
@@ -440,8 +566,8 @@
 }
 
 .ndp-input__control:focus-within {
-  border-color: var(--ndp-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ndp-accent) 14%, transparent);
+  border-color: var(--ndp-focus, var(--ndp-accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ndp-focus, var(--ndp-accent)) 14%, transparent);
 }
 
 @supports not (color: color-mix(in srgb, red 50%, transparent)) {
@@ -527,7 +653,58 @@
   top: auto;
 }
 
-@container (max-width: 260px) {
+/* Header steps (todayButtonPlacement="header"), by the room the month, the year and Today have
+   (ndp-selects), in rem like the text they make room for. Step 1: tighter paddings. Step 2: smaller
+   text. Step 3: no chevron, as in a calendar under 290px. Below that only the month is cut. Every
+   rule names [data-today-placement='header'], so the selects and Today rules have one specificity. */
+@container ndp-selects (max-width: 15rem) {
+  [data-today-placement='header'] .ndp-calendar__select {
+    background-position:
+      right 9px center,
+      right 4px center;
+    padding-inline: 6px 17px;
+  }
+
+  [data-today-placement='header'] .ndp-calendar__today--header {
+    padding-inline: 4px;
+  }
+}
+
+@container ndp-selects (max-width: 13.5rem) {
+  [data-today-placement='header'] .ndp-calendar__select,
+  [data-today-placement='header'] .ndp-calendar__today--header {
+    font-size: 0.8rem;
+  }
+}
+
+@container ndp-selects (max-width: 12.75rem) {
+  [data-today-placement='header'] .ndp-calendar__select {
+    background-image: none;
+    padding-inline: 4px;
+  }
+}
+
+@supports (appearance: base-select) {
+  @container ndp-selects (max-width: 15rem) {
+    [data-today-placement='header'] .ndp-calendar__select {
+      gap: 2px;
+      padding-inline: 6px 4px;
+    }
+  }
+
+  @container ndp-selects (max-width: 12.75rem) {
+    [data-today-placement='header'] .ndp-calendar__select {
+      padding-inline: 4px;
+    }
+
+    [data-today-placement='header'] .ndp-calendar__select::picker-icon {
+      display: none;
+    }
+  }
+}
+
+/* The calendar (not the header room above) is the container here, as in 1.0.4. */
+@container ndp-calendar (max-width: 260px) {
   .ndp-calendar__header,
   .ndp-calendar__selects {
     gap: 4px;
@@ -538,6 +715,16 @@
     gap: 2px;
     padding-inline: 4px;
     background-image: none;
+  }
+
+  /* No chevron to make room for in a header select either. */
+  [data-today-placement='header'] .ndp-calendar__select {
+    padding-inline: 4px;
+  }
+
+  [data-today-placement='header'] .ndp-calendar__today--header {
+    font-size: 0.8rem;
+    padding-inline: 4px;
   }
 }
 
@@ -565,5 +752,13 @@
   .ndp-input__button,
   .ndp-input__control {
     transition: none;
+  }
+
+  /* A rule of its own, inside @supports: a browser that does not know ::picker-icon drops every
+     selector in a list that names it, and would lose the resets above. */
+  @supports (appearance: base-select) {
+    .ndp-calendar__select::picker-icon {
+      transition: none;
+    }
   }
 }

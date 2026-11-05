@@ -6,6 +6,7 @@ import {
   toAD,
   type NepaliDateValue,
   type NepaliLocale,
+  type TodayButtonPlacement,
 } from '@arclogi/nepali-date-picker';
 import '@arclogi/nepali-date-picker/styles.css';
 
@@ -27,6 +28,7 @@ export function App(): React.JSX.Element {
   });
   const [copied, setCopied] = React.useState(false);
   const [locale, setLocale] = React.useState<NepaliLocale>('en');
+  const [todayPlacement, setTodayPlacement] = React.useState<TodayButtonPlacement>('header');
 
   const adDate = date ? toAD(date) : null;
 
@@ -210,8 +212,35 @@ export function App(): React.JSX.Element {
               Embed just the calendar grid&mdash;no input required&mdash;with English or Nepali
               localization built in.
             </p>
+            <div className="demo-option">
+              <span className="demo-option-label" id="demo-today-placement">
+                Today button
+              </span>
+              <div
+                aria-labelledby="demo-today-placement"
+                className="demo-locale-toggle"
+                role="group"
+              >
+                {(['header', 'footer'] as const).map((placement) => (
+                  <button
+                    aria-pressed={todayPlacement === placement}
+                    className="demo-locale-button"
+                    key={placement}
+                    onClick={() => setTodayPlacement(placement)}
+                    type="button"
+                  >
+                    {placement === 'header' ? 'Header' : 'Footer'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="demo-calendar-frame">
-              <NepaliCalendar value={date} onChange={setDate} locale={locale} />
+              <NepaliCalendar
+                value={date}
+                onChange={setDate}
+                locale={locale}
+                todayButtonPlacement={todayPlacement}
+              />
             </div>
           </div>
         </section>

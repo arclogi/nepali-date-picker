@@ -25,6 +25,7 @@ import type {
   NepaliDateValue,
   NepaliLocale,
   NepaliMonthValue,
+  TodayButtonPlacement,
   WeekdayIndex,
 } from '../types';
 import { getCalendarBounds } from './bounds';
@@ -50,6 +51,8 @@ export interface NepaliCalendarProps {
   onChange?: ((date: NepaliDateValue, context: NepaliDateChangeContext) => void) | undefined;
   onViewDateChange?: ((date: NepaliMonthValue) => void) | undefined;
   showTodayButton?: boolean | undefined;
+  /** Where the Today button goes: under the days (`'footer'`, the default) or in the header. */
+  todayButtonPlacement?: TodayButtonPlacement | undefined;
   value?: NepaliDateValue | null;
   viewDate?: NepaliMonthValue | undefined;
   weekStartsOn?: WeekdayIndex | undefined;
@@ -69,6 +72,7 @@ export function NepaliCalendar({
   onChange,
   onViewDateChange,
   showTodayButton = true,
+  todayButtonPlacement = 'footer',
   value,
   viewDate,
   weekStartsOn = DEFAULT_WEEK_STARTS_ON,
@@ -310,9 +314,25 @@ export function NepaliCalendar({
   }
 
   const todayUnavailable = !today || isDateUnavailable(today);
+  const todayInHeader = todayButtonPlacement === 'header';
+  // One button for both placements; in the header it follows the selects in the focus order.
+  const todayButton = showTodayButton ? (
+    <button
+      className={cx('ndp-calendar__today', todayInHeader && 'ndp-calendar__today--header')}
+      disabled={todayUnavailable}
+      onClick={selectToday}
+      type="button"
+    >
+      {locale === 'ne' ? 'आज' : 'Today'}
+    </button>
+  ) : null;
 
   return (
-    <div className={cx('ndp-calendar', className)} data-invalid={valueIsInvalid || undefined}>
+    <div
+      className={cx('ndp-calendar', className)}
+      data-invalid={valueIsInvalid || undefined}
+      data-today-placement={showTodayButton ? (todayInHeader ? 'header' : 'footer') : undefined}
+    >
       <div className="ndp-calendar__header">
         <button
           aria-label={locale === 'ne' ? 'अघिल्लो महिना' : 'Previous month'}
@@ -383,6 +403,7 @@ export function NepaliCalendar({
               );
             })}
           </select>
+          {todayInHeader ? todayButton : null}
         </div>
         <button
           aria-label={locale === 'ne' ? 'अर्को महिना' : 'Next month'}
@@ -491,17 +512,8 @@ export function NepaliCalendar({
         ))}
       </div>
 
-      {showTodayButton ? (
-        <div className="ndp-calendar__footer">
-          <button
-            className="ndp-calendar__today"
-            disabled={todayUnavailable}
-            onClick={selectToday}
-            type="button"
-          >
-            {locale === 'ne' ? 'आज' : 'Today'}
-          </button>
-        </div>
+      {todayButton && !todayInHeader ? (
+        <div className="ndp-calendar__footer">{todayButton}</div>
       ) : null}
     </div>
   );

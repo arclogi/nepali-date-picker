@@ -4,6 +4,7 @@ import {
   NepaliDateInput,
   NepaliDatePicker,
   type NepaliDateValue,
+  type TodayButtonPlacement,
 } from '@arclogi/nepali-date-picker';
 import { toBS } from '@arclogi/nepali-date-picker/core';
 
@@ -22,9 +23,13 @@ export const input = (
     }}
   />
 );
-export const picker = <NepaliDatePicker ref={ref} name="dob" defaultValue={date} />;
+const placement: TodayButtonPlacement = 'header';
+export const picker = (
+  <NepaliDatePicker ref={ref} name="dob" defaultValue={date} todayButtonPlacement={placement} />
+);
 export const calendar = (
   <NepaliCalendar
+    todayButtonPlacement="footer"
     value={date}
     onChange={(next, context) => {
       const ad: Date = context.ad;
@@ -35,3 +40,5 @@ export const calendar = (
 
 // @ts-expect-error Public dates must use numeric fields.
 export const invalid = <NepaliDateInput value="2081-01-01" />;
+// @ts-expect-error Today goes in the footer or the header only.
+export const invalidPlacement = <NepaliCalendar todayButtonPlacement="top" />;

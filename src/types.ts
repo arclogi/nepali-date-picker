@@ -2,6 +2,12 @@ export type NepaliLocale = 'en' | 'ne';
 
 export type WeekdayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+/**
+ * Where the calendar shows its Today button: in a compact row under the days (`'footer'`) or in the
+ * header row, next to the month and year selects (`'header'`).
+ */
+export type TodayButtonPlacement = 'footer' | 'header';
+
 export interface NepaliDateValue {
   year: number;
   month: number;

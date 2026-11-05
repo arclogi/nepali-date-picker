@@ -1,5 +1,67 @@
 # Changelog
 
+## 1.0.5 (2026-10-25)
+
+### Added
+
+- `--ndp-focus`: the colour of every focus ring the picker draws (days, the previous/next buttons,
+  the month and year selects and the option reached with the arrow keys in their open list, Today,
+  the input and its clear and calendar buttons). It is not set by the stylesheet, so the rings
+  follow `--ndp-accent` as before; set it on any ancestor to change the focus colour where the
+  picker is used there (README, "Focus colour").
+- `todayButtonPlacement` (`'footer' | 'header'`, default `'footer'`) on `NepaliCalendar` and on
+  `NepaliDateInput` / `NepaliDatePicker`, where it overrides `calendarProps.todayButtonPlacement`.
+  `'header'` puts a compact "Today" / "आज" text button straight after the month and year selects,
+  in that Tab order (previous month, month, year, Today, next month, then the days), and drops the
+  row under the days. In both places the button selects today and is disabled when today cannot be
+  picked. The new type `TodayButtonPlacement` is exported. `'footer'` looks as in 1.0.4.
+- With Today in the header, the month, the year and Today keep their full width in a room of 11rem
+  (176px) or more between the previous and next buttons, which a calendar has from 286px wide with
+  the default padding and buttons: as the room narrows the selects tighten their padding, then use
+  smaller text, then drop their chevron. Below that only the month name is cut, never the year or
+  Today. That room is a size container named `ndp-selects`, and the calendar's container is now
+  named `ndp-calendar` (README, `NepaliCalendar`).
+- `data-today-placement` (`footer` or `header`) on `ndp-calendar`, and the class
+  `ndp-calendar__today--header` on a Today button in the header.
+
+### Fixed
+
+- Host form styles no longer draw focus rings, outlines, a focus border colour or select arrows on
+  the picker's controls. `@tailwindcss/forms` drew its blue ring and border inside the focus outline
+  of a focused month or year select; a host's global `:focus` outline or `button:focus` shadow
+  showed on its buttons; a host's ring could show on the input field inside the control. The
+  picker now resets `box-shadow`, the focus border colour and pointer-focus outlines on its own
+  classes only (for example `.ndp-calendar__select:focus`), with enough specificity to beat element
+  and attribute selectors such as `select:focus` and `[type='text']:focus`, and sets the background
+  colour, image, position, repeat and size of the selects, so a host's select arrow cannot show
+  through. Keyboard focus keeps the picker's own outline. The text field's background and padding
+  keep their 1.0.4 specificity (README, "Host styles").
+- The month and year selects draw a light chevron in `--ndp-muted` that follows the theme (the dark
+  theme and any `--ndp-muted` override included). Customizable selects (`appearance: base-select`)
+  showed the browser's heavy triangle; they now show the same chevron as their picker icon, turned
+  up while the list is open. Other browsers draw it as a background instead of a fixed-grey image.
+- In customizable selects, the month and year text is centred in its box; it sat about 2px high.
+- In the open list of a customizable select, the option reached with the arrow keys shows the
+  `--ndp-focus` ring; it had only a faint fill.
+- Escape in the open list of the month or year select closes only that list; it closed the whole
+  calendar (Chrome's customizable selects).
+
+### Changed
+
+- Focus rings read `var(--ndp-focus, var(--ndp-accent))`; with `--ndp-focus` unset they look as
+  before. Browsers without `color-mix()` still draw the input's soft halo from `--ndp-accent-rgb`.
+- A host that styles focused picker controls with `box-shadow` or a pointer-focus `outline` needs a
+  selector more specific than the new resets (`.ndp-calendar__select:focus` is 0-2-0); setting
+  `--ndp-focus` needs none.
+- A focused month or year select keeps its border colour, so a form plugin's `select:focus` cannot
+  turn it blue. The reset (`select.ndp-calendar__select:not(input):where(:focus)`, 0-1-2) gives way
+  to a class-level host colour such as `.my-app .ndp-calendar__select` (0-2-0) on focus too; a host
+  that sets the colour with a bare `.ndp-calendar__select` (0-1-0) should use such a selector.
+- An unnamed `@container` query in a host stylesheet that styles the month or year select or the
+  header Today resolves against the `ndp-selects` room when Today is in the header (with the footer
+  placement nothing changes); name `ndp-calendar` to query the calendar.
+- The demo shows the Today button in the header, with a switch to the footer.
+
 ## 1.0.4 (2026-10-21)
 
 ### Fixed

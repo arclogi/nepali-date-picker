@@ -222,6 +222,36 @@ describe('React components', () => {
     expect(input).toHaveFocus();
   });
 
+  it('keeps the calendar open when Escape closes the open list of a month or year select', async () => {
+    const user = userEvent.setup();
+    const hostKeyDown = vi.fn();
+
+    render(
+      <div onKeyDown={hostKeyDown}>
+        <NepaliDateInput defaultViewDate={{ year: 2081, month: 1 }} placeholder="DOB" />
+      </div>,
+    );
+    await user.click(screen.getByPlaceholderText('DOB'));
+
+    // happy-dom has no :open; Chrome's customizable selects match it while their list is shown, and
+    // send the Escape from the focused option inside it.
+    const month = screen.getByRole('combobox', { name: 'Month' });
+    const matches = month.matches.bind(month);
+    const listOpen = vi
+      .spyOn(month, 'matches')
+      .mockImplementation((selector) => selector === ':open' || matches(selector));
+    fireEvent.keyDown(within(month).getByRole('option', { name: 'Jestha' }), { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // Still the picker's key: a dialog around the field does not close on it either.
+    expect(hostKeyDown).not.toHaveBeenCalled();
+
+    // With the list closed, Escape on the select closes the calendar as before.
+    listOpen.mockRestore();
+    fireEvent.keyDown(month, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(hostKeyDown).not.toHaveBeenCalled();
+  });
+
   it('submits a canonical hidden form value when name is set', async () => {
     const { container } = render(
       <NepaliDateInput
@@ -919,5 +949,149 @@ describe('Invalid props', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('Today button placement', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 21, 12)); // today: 2083-07-04
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const header = (container: HTMLElement) => container.querySelector('.ndp-calendar__header')!;
+  const footer = (container: HTMLElement) => container.querySelector('.ndp-calendar__footer');
+
+  it('keeps Today in a compact footer under the days by default', () => {
+    const { container } = render(<NepaliCalendar viewDate={{ year: 2083, month: 7 }} />);
+
+    const today = screen.getByRole('button', { name: 'Today' });
+    expect(footer(container)).toContainElement(today);
+    expect(header(container)).not.toContainElement(today);
+    expect(today).toHaveClass('ndp-calendar__today');
+    expect(today).not.toHaveClass('ndp-calendar__today--header');
+    expect(container.querySelector('.ndp-calendar')).toHaveAttribute(
+      'data-today-placement',
+      'footer',
+    );
+  });
+
+  it('puts a compact Today next to the month and year selects with todayButtonPlacement="header"', () => {
+    const { container } = render(
+      <NepaliCalendar todayButtonPlacement="header" viewDate={{ year: 2083, month: 7 }} />,
+    );
+
+    const today = screen.getByRole('button', { name: 'Today' });
+    expect(header(container)).toContainElement(today);
+    expect(footer(container)).toBeNull();
+    expect(today).toHaveClass('ndp-calendar__today', 'ndp-calendar__today--header');
+    expect(today.previousElementSibling).toBe(screen.getByRole('combobox', { name: 'Year' }));
+    expect(container.querySelector('.ndp-calendar')).toHaveAttribute(
+      'data-today-placement',
+      'header',
+    );
+  });
+
+  it('reaches the header Today by keyboard after the selects, then the next-month button and the days', async () => {
+    const user = userEvent.setup();
+    render(
+      <NepaliCalendar
+        todayButtonPlacement="header"
+        value={{ year: 2083, month: 7, day: 10 }}
+        viewDate={{ year: 2083, month: 7 }}
+      />,
+    );
+
+    screen.getByRole('button', { name: 'Previous month' }).focus();
+    const order = [
+      screen.getByRole('combobox', { name: 'Month' }),
+      screen.getByRole('combobox', { name: 'Year' }),
+      screen.getByRole('button', { name: 'Today' }),
+      screen.getByRole('button', { name: 'Next month' }),
+      screen.getByRole('gridcell', { name: 'Tuesday, 10 Kartik 2083' }),
+    ];
+    for (const element of order) {
+      await user.tab();
+      expect(element).toHaveFocus();
+    }
+  });
+
+  it('selects today from the header, labelled आज in Nepali', async () => {
+    const user = userEvent.setup();
+    const handleChange = vi.fn();
+    render(
+      <NepaliCalendar
+        locale="ne"
+        defaultViewDate={{ year: 2083, month: 1 }}
+        onChange={handleChange}
+        todayButtonPlacement="header"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'आज' }));
+    expect(handleChange).toHaveBeenCalledExactlyOnceWith(
+      { year: 2083, month: 7, day: 4 },
+      expect.objectContaining({ formatted: '२०८३-०७-०४' }),
+    );
+    expect(screen.getByRole('gridcell', { current: 'date' })).toHaveFocus();
+  });
+
+  it('disables the header Today when today cannot be picked', () => {
+    render(
+      <NepaliCalendar
+        maxDate={{ year: 2083, month: 7, day: 3 }}
+        todayButtonPlacement="header"
+        viewDate={{ year: 2083, month: 7 }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+  });
+
+  it('renders no Today button, and no placement, with showTodayButton={false}', () => {
+    const { container } = render(
+      <NepaliCalendar showTodayButton={false} todayButtonPlacement="header" />,
+    );
+    expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument();
+    expect(footer(container)).toBeNull();
+    expect(container.querySelector('.ndp-calendar')).not.toHaveAttribute('data-today-placement');
+  });
+
+  it('passes todayButtonPlacement from the date input to its calendar, over calendarProps', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <NepaliDateInput
+        calendarProps={{ todayButtonPlacement: 'header' }}
+        defaultOpen
+        placeholder="DOB"
+      />,
+    );
+    const dialog = () => screen.getByRole('dialog');
+    const inHeader = () =>
+      dialog()
+        .querySelector('.ndp-calendar__header')!
+        .contains(screen.getByRole('button', { name: 'Today' }));
+    expect(inHeader()).toBe(true);
+
+    rerender(
+      <NepaliDateInput
+        calendarProps={{ todayButtonPlacement: 'header' }}
+        defaultOpen
+        placeholder="DOB"
+        todayButtonPlacement="footer"
+      />,
+    );
+    expect(inHeader()).toBe(false);
+
+    rerender(<NepaliDateInput defaultOpen placeholder="DOB" todayButtonPlacement="header" />);
+    expect(inHeader()).toBe(true);
+
+    // Picking today from the header closes the popover and returns focus to the input.
+    await user.click(screen.getByRole('button', { name: 'Today' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('DOB')).toHaveValue('2083-07-04');
+    expect(screen.getByPlaceholderText('DOB')).toHaveFocus();
   });
 });
